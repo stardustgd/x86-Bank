@@ -1,11 +1,19 @@
 # CIS123 Group Project
 
-## Members
+## Banking Application
 
-- Sebastian Ala Torre,
-- Conan Nguyen,
-- Samuel Segovia,
-- Austen Bernal,
+- User sign into bank account
+- Deposit and withdraw money
+- Be able to view account balance
+- Be able to calculate interest
+- Display a log of the user's transactions
+
+## Group Members
+
+- Sebastian Ala Torre
+- Conan Nguyen
+- Samuel Segovia
+- Austen Bernal
 - Bernardo Flores
 
 ## Deadlines
@@ -21,29 +29,10 @@
   
 ## Weekly Meeting Times
 
-TBA
+- Sundays at 3:00pm
 
 ## Resources Needed
 
-- Visual Studio
+- Visual Studio 2017
 - Google Docs
 - Google Forms
-
-## Ideas
-
-### Banking Application
-
-- User sign into bank account
-- Deposit and withdraw money
-- Be able to view account balance
-- Be able to calculate interest
-- Display a log of the user's transactions
-
-### Calculator
-
-- Basic arithmetic from user's input
-- Floating point arithmetic
-- GPA Calculator
-- Interest calculator
-- Discrete Math Calculator
-- Expand to a GUI application

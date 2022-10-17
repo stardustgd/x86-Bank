@@ -12,6 +12,9 @@ INCLUDE Irvine32.inc
 			  "3. Calculate Interest", newLine,
 			  "4. Print log of previous transactions", endl
 
+    databaseFile BYTE "database.txt"
+    fileHandle DWORD ?
+
 .code
 main PROC
 	mov edx, OFFSET welcomeText
@@ -34,5 +37,16 @@ printMenu PROC
 	ret
 printMenu ENDP
 
+initializeDatabase PROC
+    mov edx, OFFSET databaseFile
+    call CreateOutputFile
+    mov fileHandle, eax
 
+    mov edx, OFFSET databaseFile
+    mov ecx, LENGTHOF databaseFile
+    call WriteToFile
+
+    call CloseFile
+
+    ret
 END main
