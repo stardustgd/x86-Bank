@@ -1,20 +1,22 @@
 INCLUDE Irvine32.inc
 
 .const
+	carriageReturn db 0ah
 	endl EQU <0dh, 0ah, 0>
 	newLine EQU <0dh, 0ah>
 
 .data
-	welcomeText BYTE "Welcome to Bank of the Universe!", endl
-	goodbyeText BYTE "Thank you for banking with us.", endl
+	welcomeText db "Welcome to the x86 Bank!", endl
+	goodbyeText db "Thank you for banking with us.", endl
 
-	depositString BYTE "Deposit", endl
-	withdrawString BYTE "Withdraw", endl
-	interestString BYTE "Interest", endl
-	printLogString BYTE "Print log", endl
+	depositString db "Deposit", endl
+	withdrawString db "Withdraw", endl
+	interestString db "Interest", endl
+	printLogString db "Print log", endl
 
-	databaseFile BYTE "database.txt",0
+	databaseFile db "database.txt",0
 	fileHandle HANDLE ?
+	bytesWritten dd ?
 
 .code
 main PROC
@@ -71,33 +73,66 @@ main ENDP
 ;----------------------------------------------------
 loginMenu PROC USES edx
 ;
-; Prints out a login screen for the user
+; User login screen that takes in a username and 
+; password, then verifies that it matches with the
+; database. 
 ; Recieves: nothing
 ; Returns: nothing
 ;----------------------------------------------------
 .data
-	usernameText db "Username: ", 0
-	passwordText db "Password: ", 0
+	usernamePrompt db "Username: ", 0
+	passwordPrompt db "Password: ", 0
 
 	userName db 21 DUP(?)
-
 	userPass db 21 DUP(?)
 
 	byteCount DWORD ?
 
 .code
-	mov edx, OFFSET usernameText
+	mov edx, OFFSET usernamePrompt				; Print username prompt
 	call WriteString
 
 	mov edx, OFFSET userName					; Prompt for username
 	mov ecx, SIZEOF userName
 	call ReadString
 
-	; TODO: Need to get this to work
-	; Go to where the null character is and insert a newline 
-	mov byteCount, eax
-	call WriteString
+	mov byteCount, eax							; Store the amount of bytes read
 
+	; TODO: prompt for password 
+
+	; mov edx, OFFSET passwordPrompt				; Print passowrd prompt
+	; call WriteString
+
+	; mov edx, OFFSET userPass					; Prompt for password
+	; mov ecx, SIZEOF userPass
+	; call ReadString
+
+	; add byteCount, eax
+
+	call verifyLogin
+	ret
+
+loginMenu ENDP
+
+;----------------------------------------------------
+verifyLogin PROC USES eax
+;
+; Opens the database file and checks if the 
+; supplied username and password exists in the 
+; database. If it doesn't, the username and password
+; will be registered to the database.
+; Recieves: nothing
+; Returns: nothing
+;----------------------------------------------------
+.data 
+	errorMessage db "Couldn't open the file.", endl
+	readError db "Couldn't read file.",endl
+
+	BUFFERSIZE = 5000
+	buffer db BUFFERSIZE DUP(?)
+	bytesRead dd ?
+
+.code
 	INVOKE CreateFile, 							; Try to open database file
 		ADDR databaseFile, GENERIC_WRITE, 
 		DO_NOT_SHARE, NULL, OPEN_EXISTING, 
@@ -105,6 +140,29 @@ loginMenu PROC USES edx
 
 	mov fileHandle, eax
 
+	cmp eax, INVALID_HANDLE_VALUE				; Make sure that the file was opened
+	jne L1
+
+	mov edx, OFFSET errorMessage				; Print out the error message and quit
+	call WriteString
+	jmp quit
+
+L1:
+	; TODO: Read from file (theres currently an error)
+	mov edx, OFFSET databaseFile
+	call OpenInputFile
+	mov fileHandle, eax
+
+	mov eax, fileHandle
+	mov ecx, BUFFERSIZE
+	mov edx, OFFSET buffer 
+
+	call ReadFromFile
+	jc show_read_error
+
+	call WriteInt
+	call Crlf
+	
 	INVOKE SetFilePointer,						; Move the fileHandle to the end of the file
 		fileHandle, 0, 0, FILE_END
 
@@ -112,12 +170,21 @@ loginMenu PROC USES edx
 		fileHandle, ADDR userName, 
 		byteCount, ADDR bytesWritten, 0
 
+	INVOKE WriteFile,							; Write out a new line
+		fileHandle, ADDR carriageReturn,
+		1, ADDR bytesWritten, 0
+
 	mov eax, fileHandle
 	call CloseFile
 
+show_read_error:
+	mov edx, OFFSET readError
+	call WriteString
+
+quit:
 	ret
 
-loginMenu ENDP
+verifyLogin ENDP
 
 
 ;----------------------------------------------------
@@ -128,12 +195,12 @@ printMenu PROC USES edx
 ; Returns: nothing
 ;----------------------------------------------------
 .data
-	menu BYTE "Please select an option:", newLine,
-			  "1. Deposit Money", newLine,
-			  "2. Withdraw Money", newLine,
-			  "3. Calculate Interest", newLine,
-			  "4. Print log of previous transactions", newLine,
-			  "5. Log out", endl
+	menu db "Please select an option:", newLine,
+			"1. Deposit Money", newLine,
+			"2. Withdraw Money", newLine,
+			"3. Calculate Interest", newLine,
+			"4. Print log of previous transactions", newLine,
+			"5. Log out", endl
 
 .code
 	mov edx, OFFSET menu
@@ -147,12 +214,10 @@ initializeDatabase PROC USES eax
 ;
 ; Creates a database file if one doesn't exist.
 ; Recieves: nothing
-; Returns: nothing 
+; Returns: fileHandle = valid file handle 
 ;----------------------------------------------------
-.data
-	alreadyInitialized db "Database already initialized...", newLine
-	bufferSize DWORD ($ - alreadyInitialized)
-	bytesWritten DWORD ?
+.data 
+	databaseMsg db "Database doesn't exist... Creating one.",endl
 
 .code
 	INVOKE CreateFile, 							; Try to open database file
@@ -161,25 +226,18 @@ initializeDatabase PROC USES eax
 		FILE_ATTRIBUTE_NORMAL, 0
 
 	cmp eax, INVALID_HANDLE_VALUE				; Check if the file exists
-	jne write_file								; If it does, write to the file
+	jne quit									; If it does, do nothing
 
-	mov edx, OFFSET databaseFile				; If it doesn't create one
+	mov edx, OFFSET databaseMsg
+	call WriteString
+
+	mov edx, OFFSET databaseFile				; If it doesn't, create one
 	call CreateOutputFile
-	jmp write_file
 
-write_file:
+quit:
 	mov fileHandle, eax							; Save the file handle
-
-	INVOKE SetFilePointer,						; Move the fileHandle to the end of the file
-		fileHandle, 0, 0, FILE_END
-
-	INVOKE WriteFile,							; Write to the file
-		fileHandle, ADDR alreadyInitialized, 
-		bufferSize, ADDR bytesWritten, 0
-
-	mov eax, fileHandle
-	call CloseFile
-
+	
+	call CloseFile								; Close the file
 	ret
 initializeDatabase ENDP
 
