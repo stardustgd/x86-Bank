@@ -38,42 +38,12 @@ main PROC
 	mov edx, OFFSET welcomeText
 	call WriteString
 
-L1:
+L1:												; Main program loop
+	call Clrscr
 	call printMenu
-	call ReadInt
-
-	cmp eax, 1
-	je L2
-
-	cmp eax, 2
-	je L3
-
-	cmp eax, 3
-	je L4
-
-	cmp eax, 4
-	je L5
-
-	cmp eax, 5
-	je Logout
-
-L2:
-	call Deposit
 	jmp L1
 
-L3:
-	call Withdraw
-	jmp L1
-
-L4:
-	call Interest
-	jmp L1
-
-L5:
-	call PrintLog
-	jmp L1
-
-Logout:
+exit_program::
 	mov edx, OFFSET goodbyeText
 	call WriteString
 
@@ -198,13 +168,26 @@ verifyLogin ENDP
 
 
 ;----------------------------------------------------
-printMenu PROC USES edx
+printMenu PROC USES eax ebx ecx edx
 ;
 ; Print out a menu for the user to select options.
 ; Recieves: nothing
 ; Returns: nothing
 ;----------------------------------------------------
 .data
+	CaseTable db '1'
+		dd Deposit
+		EntrySize = ($ - CaseTable)
+		db '2'
+		dd Withdraw 
+		db '3'
+		dd Interest
+		db '4'
+		dd PrintLog
+		db '5'
+		dd Logout
+		NumberOfEntries = ($ - CaseTable) / EntrySize
+
 	menu db "Please select an option:", newLine,
 			"1. Deposit Money", newLine,
 			"2. Withdraw Money", newLine,
@@ -213,9 +196,23 @@ printMenu PROC USES edx
 			"5. Log out", endl
 
 .code
-	mov edx, OFFSET menu
+	mov edx, OFFSET menu					; Print out menu
 	call WriteString
 
+	call ReadChar
+
+	mov ebx, OFFSET CaseTable
+	mov ecx, NumberOfEntries
+
+L1:	
+	cmp al, [ebx]							; Match found?
+	jne L2									; No, continue
+	call NEAR PTR [ebx + 1]					; Yes, call procedure
+	jmp L3									; Exit loop
+L2:	
+	add ebx, EntrySize						; Point to next entry, repeat until ecx = 0
+	loop L1
+L3:
 	ret
 printMenu ENDP
 
@@ -262,6 +259,8 @@ Deposit PROC USES edx
 	mov edx, OFFSET depositString
 	call WriteString
 
+	call WaitMsg
+
 	ret
 Deposit ENDP
 
@@ -295,12 +294,15 @@ L1:
 	mov edx, OFFSET withdrawSuccess				; Print out the withdraw success
 	call WriteString
 	call WriteDec
-	call Crlf 
+	call Crlf
+
+	call WaitMsg								; Wait for user to press any key to continue
+	jmp quit
 
 show_withdraw_error:
 	mov edx, OFFSET withdrawError				; Print out the withdraw error
 	call WriteString
-	jmp quit
+	call WaitMsg								; Wait for user to press any key to continue
 
 quit:
 	ret
@@ -317,6 +319,8 @@ Interest PROC USES edx
 	mov edx, OFFSET interestString
 	call WriteString
 
+	call WaitMsg
+
 	ret
 Interest ENDP
 
@@ -330,7 +334,21 @@ PrintLog PROC USES edx
 	mov edx, OFFSET printLogString
 	call WriteString
 
+	call WaitMsg
+
 	ret
 PrintLog ENDP
+
+;----------------------------------------------------
+Logout PROC
+;
+; Ends the main loop and quits out of the program
+; Recieves: nothing
+; Returns: nothing
+;----------------------------------------------------
+	jmp exit_program
+
+	ret
+Logout ENDP
 
 END main
