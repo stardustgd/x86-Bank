@@ -24,7 +24,7 @@
 - 10/27/2022
   - Group progress report due.
 
-- 11/17/2022
+- 12/1/2022
   - Group project and presentation due
   
 ## Weekly Meeting Times
