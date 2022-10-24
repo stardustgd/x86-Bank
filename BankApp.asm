@@ -12,6 +12,7 @@ INCLUDE Irvine32.inc
 
 .const
 	carriageReturn db 0ah
+	carriageReturn db 0ah
 	endl EQU <0dh, 0ah, 0>
 	newLine EQU <0dh, 0ah>
 
