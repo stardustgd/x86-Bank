@@ -159,19 +159,19 @@ verifyLogin PROC USES eax
 
 L1:
 	; TODO: Read from file (theres currently an error)
-	mov edx, OFFSET databaseFile
-	call OpenInputFile
-	mov fileHandle, eax
+	; mov edx, OFFSET databaseFile
+	; call OpenInputFile
+	; mov fileHandle, eax
 
-	mov eax, fileHandle
-	mov ecx, BUFFERSIZE
-	mov edx, OFFSET buffer 
+	; mov eax, fileHandle
+	; mov ecx, BUFFERSIZE
+	; mov edx, OFFSET buffer 
 
-	call ReadFromFile
-	jc show_read_error
+	; call ReadFromFile
+	; jc show_read_error
 
-	call WriteInt
-	call Crlf
+	; call WriteInt
+	; call Crlf
 	
 	INVOKE SetFilePointer,						; Move the fileHandle to the end of the file
 		fileHandle, 0, 0, FILE_END
@@ -187,9 +187,9 @@ L1:
 	mov eax, fileHandle
 	call CloseFile
 
-show_read_error:
-	mov edx, OFFSET readError
-	call WriteString
+; show_read_error:
+; 	mov edx, OFFSET readError
+; 	call WriteString
 
 quit:
 	ret
@@ -266,16 +266,43 @@ Deposit PROC USES edx
 Deposit ENDP
 
 ;----------------------------------------------------
-Withdraw PROC USES edx
+Withdraw PROC USES edx ebx eax
 ;
 ; Allows the user to specify an amount of money
 ; that is subtracted from their account balance.
 ; Recieves: nothing
 ; Returns: nothing
 ;----------------------------------------------------
-	mov edx, OFFSET withdrawString
-	call WriteString
+.data
+	withdrawPrompt db "Please enter the amount you would like to withdraw: $", 0
+	withdrawSuccess db "You have successfully withdrawn $", 0
+	withdrawError db "The withdraw has not been completed. (You have insufficient funds to do so.)", endl
+	balance dd 100
 
+.code 
+	mov edx, OFFSET withdrawPrompt				; Print out prompt and read user int
+	call WriteString 
+	call ReadDec
+
+	mov ebx, balance
+	cmp eax, ebx								; Compare the input with the account balance
+	jl L1										; Complete withdraw if input is less than balance
+	jmp show_withdraw_error						; Print out error if input is greater than balance
+
+L1:
+	sub balance, eax							; Withdraw the money from the user's account 
+
+	mov edx, OFFSET withdrawSuccess				; Print out the withdraw success
+	call WriteString
+	call WriteDec
+	call Crlf 
+
+show_withdraw_error:
+	mov edx, OFFSET withdrawError				; Print out the withdraw error
+	call WriteString
+	jmp quit
+
+quit:
 	ret
 Withdraw ENDP
 
