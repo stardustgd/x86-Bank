@@ -39,7 +39,7 @@ main PROC
 	call WriteString
 
 L1:												; Main program loop
-	; call Clrscr
+	call Clrscr
 	call printMenu
 	jmp L1
 
@@ -66,7 +66,8 @@ loginMenu PROC USES edx
 	userName db 21 DUP(?)
 	userPass db 21 DUP(?)
 
-	byteCount DWORD ?
+	nameByteCount DWORD ?
+	passByteCount DWORD ?
 
 .code
 	mov edx, OFFSET usernamePrompt				; Print username prompt
@@ -76,9 +77,7 @@ loginMenu PROC USES edx
 	mov ecx, SIZEOF userName
 	call ReadString
 
-	mov byteCount, eax							; Store the amount of bytes read
-
-	; TODO: prompt for password 
+	mov nameByteCount, eax						; Store the amount of bytes read
 
 	mov edx, OFFSET passwordPrompt				; Print passowrd prompt
 	call WriteString
@@ -87,7 +86,7 @@ loginMenu PROC USES edx
 	mov ecx, SIZEOF userPass
 	call ReadString
 
-	add byteCount, eax
+	mov passByteCount, eax
 
 	call verifyLogin
 	ret
@@ -131,8 +130,7 @@ verifyLogin PROC
 	jmp quit
 
 read_success:
-	mov eax, fileHandle							; Prepare to read file
-	mov ecx, BUFFER_SIZE
+	mov ecx, BUFFER_SIZE						; Prepare to read file
 	mov edx, OFFSET buffer 
 
 	call ReadFromFile							; Read the file
@@ -212,21 +210,11 @@ reset_token:
 	mov edi, OFFSET fileLine					; Restart the search
 	jmp L1
 
-
-
-	; while (scnr.hasNextLine()) {
-	;	line = scnr.nextLine();
-	;	String[] tokens = line.split(",");
-	;	String name = tokens[0]
-	;	if (name == userName)
-	;		validName = true
-	; }
-
 eof:
-	mov edx, OFFSET endFile						; If the end of the file has been reached,
-												; and no match has been found, then register
-												; the user to the database.
-	call WriteString
+	mov ecx, passByteCount						; If the end of the file has been reached,
+	call EncryptPassword						; and no match has been found, then register
+	call RegisterUser							; the user to the database.
+
 	jmp quit
 
 show_read_error:
@@ -238,6 +226,99 @@ quit:
 
 verifyLogin ENDP
 
+;----------------------------------------------------
+RegisterUser PROC USES eax edx
+;
+; Registers a user to the database.
+; Recieves: nothing
+; Returns: nothing
+;----------------------------------------------------
+.data
+	registerPrompt db "You are not registered with x86 Bank. Would you like to register? (Y/N)", endl
+	commaSeparator db ","
+	initializeMoney db ",500", newLine			; Initilaize account with $500
+
+.code
+L1:
+	mov edx, OFFSET registerPrompt
+	call WriteString
+
+	call ReadChar
+
+	cmp al, 79h									; Check if char is y
+	je register_user
+
+	cmp al, 59h									; Check if char is Y
+	je register_user
+
+	cmp al, 6eh									; Check if char n
+	je terminate_program
+
+	cmp al, 4eh									; Check if char N
+	je terminate_program
+
+	jmp L1										; Repeat until valid input
+
+register_user:
+	INVOKE CreateFile,							; Open a new file handle
+		ADDR databaseFile, GENERIC_WRITE,
+		DO_NOT_SHARE, NULL, OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL, 0
+
+	mov fileHandle, eax					
+
+	INVOKE SetFilePointer,						; Move the fileHandle to the end of the file
+		fileHandle, 0, 0, FILE_END
+
+	INVOKE WriteFile,							; Write the username
+		fileHandle, ADDR userName,
+		nameByteCount, ADDR bytesWritten, 0
+
+	INVOKE WriteFile,							; Write a comma
+		fileHandle, ADDR commaSeparator,
+		SIZEOF commaSeparator, 
+		ADDR bytesWritten, 0
+
+	INVOKE WriteFile,							; Write encrypted password
+		fileHandle, ADDR userPass,
+		passByteCount, ADDR bytesWritten, 0
+
+	INVOKE WriteFile,							; Initialize the money
+		fileHandle, ADDR initializeMoney,
+		SIZEOF initializeMoney, 
+		ADDR bytesWritten, 0
+
+	jmp quit
+
+terminate_program:
+	call Logout
+
+quit:
+	ret
+RegisterUser ENDP
+
+;----------------------------------------------------
+EncryptPassword PROC
+;
+; Simple encryption/decryption from the Irvine
+; x86 textbook.
+; Recieves: ecx = size of buffer
+; Returns: nothing
+;----------------------------------------------------
+.data
+	KEY = 239
+	BUFMAX = 128
+
+.code
+	mov esi, 0
+	
+L1:
+	xor userPass[esi], key
+	inc esi
+	loop L1
+
+	ret
+EncryptPassword ENDP
 
 ;----------------------------------------------------
 printMenu PROC USES eax ebx ecx edx
@@ -268,7 +349,7 @@ printMenu PROC USES eax ebx ecx edx
 			"5. Log out", endl
 
 .code
-	mov edx, OFFSET menu					; Print out menu
+	mov edx, OFFSET menu						; Print out menu
 	call WriteString
 
 	call ReadChar
@@ -277,12 +358,12 @@ printMenu PROC USES eax ebx ecx edx
 	mov ecx, NumberOfEntries
 
 L1:	
-	cmp al, [ebx]							; Match found?
-	jne L2									; No, continue
-	call NEAR PTR [ebx + 1]					; Yes, call procedure
-	jmp L3									; Exit loop
+	cmp al, [ebx]								; Match found?
+	jne L2										; No, continue
+	call NEAR PTR [ebx + 1]						; Yes, call procedure
+	jmp L3										; Exit loop
 L2:	
-	add ebx, EntrySize						; Point to next entry, repeat until ecx = 0
+	add ebx, EntrySize							; Point to next entry, repeat until ecx = 0
 	loop L1
 L3:
 	ret
@@ -297,8 +378,11 @@ initializeDatabase PROC USES eax
 ;----------------------------------------------------
 .data 
 	databaseMsg db "Database doesn't exist... Creating one.",endl
+	programTitle db "x86 Bank", 0
 
 .code
+	INVOKE SetConsoleTitle, ADDR programTitle	; Set the console title
+
 	INVOKE CreateFile, 							; Try to open database file
 		ADDR databaseFile, GENERIC_WRITE, 
 		DO_NOT_SHARE, NULL, OPEN_EXISTING, 
