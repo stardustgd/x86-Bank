@@ -12,7 +12,6 @@ INCLUDE Irvine32.inc
 
 .const
 	carriageReturn db 0ah
-	carriageReturn db 0ah
 	endl EQU <0dh, 0ah, 0>
 	newLine EQU <0dh, 0ah>
 
@@ -40,7 +39,7 @@ main PROC
 	call WriteString
 
 L1:												; Main program loop
-	call Clrscr
+	; call Clrscr
 	call printMenu
 	jmp L1
 
@@ -81,14 +80,14 @@ loginMenu PROC USES edx
 
 	; TODO: prompt for password 
 
-	; mov edx, OFFSET passwordPrompt				; Print passowrd prompt
-	; call WriteString
+	mov edx, OFFSET passwordPrompt				; Print passowrd prompt
+	call WriteString
 
-	; mov edx, OFFSET userPass					; Prompt for password
-	; mov ecx, SIZEOF userPass
-	; call ReadString
+	mov edx, OFFSET userPass					; Prompt for password
+	mov ecx, SIZEOF userPass
+	call ReadString
 
-	; add byteCount, eax
+	add byteCount, eax
 
 	call verifyLogin
 	ret
@@ -96,7 +95,7 @@ loginMenu PROC USES edx
 loginMenu ENDP
 
 ;----------------------------------------------------
-verifyLogin PROC USES eax
+verifyLogin PROC
 ;
 ; Opens the database file and checks if the 
 ; supplied username and password exists in the 
@@ -109,58 +108,105 @@ verifyLogin PROC USES eax
 	errorMessage db "Couldn't open the file.", endl
 	readError db "Couldn't read file.",endl
 
-	BUFFERSIZE = 5000
-	buffer db BUFFERSIZE DUP(?)
+	BUFFER_SIZE = 5000
+	buffer db BUFFER_SIZE DUP(?)
 	bytesRead dd ?
+	handleFile dd ?
+
+	fileLine db 100 DUP(?)
+	nameToken db 21 DUP(?)
+
+	endFile db "EOF", endl
 
 .code
-	INVOKE CreateFile, 							; Try to open database file
-		ADDR databaseFile, GENERIC_WRITE, 
-		DO_NOT_SHARE, NULL, OPEN_EXISTING, 
-		FILE_ATTRIBUTE_NORMAL, 0
-
+	mov edx, OFFSET databaseFile				; Try to open the database file
+	call OpenInputFile
 	mov fileHandle, eax
 
-	cmp eax, INVALID_HANDLE_VALUE				; Make sure that the file was opened
-	jne L1
+	cmp eax, INVALID_HANDLE_VALUE				; Check if the file was opened
+	jne read_success							; If it was, proceed
 
-	mov edx, OFFSET errorMessage				; Print out the error message and quit
+	mov edx, OFFSET errorMessage				; If it wasn't, print out the error message and quit
 	call WriteString
 	jmp quit
 
-L1:
-	; TODO: Read from file (theres currently an error)
-	; mov edx, OFFSET databaseFile
-	; call OpenInputFile
-	; mov fileHandle, eax
+read_success:
+	mov eax, fileHandle							; Prepare to read file
+	mov ecx, BUFFER_SIZE
+	mov edx, OFFSET buffer 
 
-	; mov eax, fileHandle
-	; mov ecx, BUFFERSIZE
-	; mov edx, OFFSET buffer 
+	call ReadFromFile							; Read the file
+	jc show_read_error							; Print out error message if read failed.
 
-	; call ReadFromFile
-	; jc show_read_error
-
-	; call WriteInt
-	; call Crlf
+	mov bytesRead, eax							; Store the amount of bytes read
 	
-	INVOKE SetFilePointer,						; Move the fileHandle to the end of the file
-		fileHandle, 0, 0, FILE_END
+	mov eax, fileHandle							; Close the file
+	call CloseFile 
 
-	INVOKE WriteFile,							; Write to the file
-		fileHandle, ADDR userName, 
-		byteCount, ADDR bytesWritten, 0
+	mov ecx, bytesRead							; Prepare loop
+	mov esi, OFFSET buffer
+	mov edi, OFFSET fileLine
 
-	INVOKE WriteFile,							; Write out a new line
-		fileHandle, ADDR carriageReturn,
-		1, ADDR bytesWritten, 0
+L1:
+	mov al, [esi]								; Move char into al
+	mov [edi], al								; Move char into the array
 
-	mov eax, fileHandle
-	call CloseFile
+	inc esi										; Go to next char
+	inc edi										; Go to next element in array
+	
+	cmp al, 0ah									; Check if 0x0A (end of line)
+	jne L1										; If not, continue
 
-; show_read_error:
-; 	mov edx, OFFSET readError
-; 	call WriteString
+	; cmp ecx, 0									; Check if 0x05 (end of file)
+	; je eof										; If it is, quit
+	
+	mov edi, OFFSET fileLine					; If it is, get the name in the line
+	mov edx, OFFSET nameToken
+
+L2:
+	mov al, [edi]								; Move char into al
+	cmp al, 2Ch									; Check if 0x2C (comma character)
+	je compare_names							; If yes, compare names
+	
+	mov [edx], al								; Move char into nameToken
+
+	inc edi										; If it's not, continue
+	inc edx
+	loop L2
+
+compare_names:
+	INVOKE Str_compare,							; Compare the userName with name in file
+		ADDR userName,
+		ADDR nameToken
+
+	je valid_name								; If it exists, exit			
+	ja L1										; If it doesn't, search again
+	jb L1
+
+valid_name:
+	mov eax, 0									; Success, return 0
+	call DumpRegs
+	jmp quit
+
+
+	; Read the entire file into memory
+	; Search for 0x0A sequence (end of line)
+
+	; while (scnr.hasNextLine()) {
+	;	line = scnr.nextLine();
+	;	String[] tokens = line.split(",");
+	;	String name = tokens[0]
+	;	if (name == userName)
+	;		validName = true
+	; }
+
+eof:
+	mov edx, OFFSET endFile
+	call WriteString
+
+show_read_error:
+	mov edx, OFFSET readError
+	call WriteString
 
 quit:
 	ret
