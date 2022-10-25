@@ -106,7 +106,7 @@ verifyLogin PROC
 ;----------------------------------------------------
 .data 
 	errorMessage db "Couldn't open the file.", endl
-	readError db "Couldn't read file.",endl
+	readError db "Couldn't read file.", endl
 
 	BUFFER_SIZE = 5000
 	buffer db BUFFER_SIZE DUP(?)
@@ -154,11 +154,11 @@ L1:
 	inc esi										; Go to next char
 	inc edi										; Go to next element in array
 	
+	cmp al, 0									; Check if 0x0 (end of file)
+	je eof										; If it is, do something
+
 	cmp al, 0ah									; Check if 0x0A (end of line)
 	jne L1										; If not, continue
-
-	; cmp ecx, 0									; Check if 0x05 (end of file)
-	; je eof										; If it is, quit
 	
 	mov edi, OFFSET fileLine					; If it is, get the name in the line
 	mov edx, OFFSET nameToken
@@ -180,17 +180,39 @@ compare_names:
 		ADDR nameToken
 
 	je valid_name								; If it exists, exit			
-	ja L1										; If it doesn't, search again
-	jb L1
+	ja restart_search							; If it doesn't, search again
+	jb restart_search
 
 valid_name:
-	mov eax, 0									; Success, return 0
-	call DumpRegs
+	mov eax, 0									; Success, do something
+	mov edx, OFFSET nameToken
+	call WriteString
+	call Crlf
+
 	jmp quit
 
+restart_search:
+	mov ecx, SIZEOF fileLine					; Prepare to restart search
+	mov edi, OFFSET fileLine
+	mov al, 0
 
-	; Read the entire file into memory
-	; Search for 0x0A sequence (end of line)
+reset_line:
+	mov [edi], al								; Reset the fileLine array
+	inc edi
+	loop reset_line
+
+	mov ecx, SIZEOF nameToken
+	mov edi, OFFSET nameToken
+
+reset_token:
+	mov [edi], al								; Reset the nameToken array
+	inc edi
+	loop reset_token
+
+	mov edi, OFFSET fileLine					; Restart the search
+	jmp L1
+
+
 
 	; while (scnr.hasNextLine()) {
 	;	line = scnr.nextLine();
@@ -201,8 +223,11 @@ valid_name:
 	; }
 
 eof:
-	mov edx, OFFSET endFile
+	mov edx, OFFSET endFile						; If the end of the file has been reached,
+												; and no match has been found, then register
+												; the user to the database.
 	call WriteString
+	jmp quit
 
 show_read_error:
 	mov edx, OFFSET readError
