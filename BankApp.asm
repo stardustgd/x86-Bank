@@ -112,8 +112,9 @@ verifyLogin PROC
 	bytesRead dd ?
 	handleFile dd ?
 
-	fileLine db 100 DUP(?)
+	fileLine db 64 DUP(?)
 	nameToken db 21 DUP(?)
+	passToken db 21 DUP(?)
 
 	endFile db "EOF", endl
 
@@ -182,6 +183,7 @@ compare_names:
 	jb restart_search
 
 valid_name:
+	; TODO: check if the password matches
 	mov eax, 0									; Success, do something
 	mov edx, OFFSET nameToken
 	call WriteString
@@ -190,22 +192,13 @@ valid_name:
 	jmp quit
 
 restart_search:
-	mov ecx, SIZEOF fileLine					; Prepare to restart search
+	mov ecx, SIZEOF fileLine					; Reset fileLine array
 	mov edi, OFFSET fileLine
-	mov al, 0
+	call ResetArray
 
-reset_line:
-	mov [edi], al								; Reset the fileLine array
-	inc edi
-	loop reset_line
-
-	mov ecx, SIZEOF nameToken
+	mov ecx, SIZEOF nameToken					; Reset nameToken array
 	mov edi, OFFSET nameToken
-
-reset_token:
-	mov [edi], al								; Reset the nameToken array
-	inc edi
-	loop reset_token
+	call ResetArray
 
 	mov edi, OFFSET fileLine					; Restart the search
 	jmp L1
@@ -298,7 +291,27 @@ quit:
 RegisterUser ENDP
 
 ;----------------------------------------------------
-EncryptPassword PROC
+ResetArray PROC USES eax
+;
+; Goes through each byte in an array and moves 0
+; into it.
+; Recieves: ecx = size of array
+;			edi = offset of array
+; Returns: nothing
+;----------------------------------------------------
+.code
+	mov al, 0
+
+L1:
+	mov [edi], al
+	inc edi 
+	loop L1
+
+	ret 
+ResetArray ENDP
+
+;----------------------------------------------------
+EncryptPassword PROC USES esi
 ;
 ; Simple encryption/decryption from the Irvine
 ; x86 textbook.
@@ -307,7 +320,7 @@ EncryptPassword PROC
 ;----------------------------------------------------
 .data
 	KEY = 239
-	BUFMAX = 128
+	BUFMAX = 21
 
 .code
 	mov esi, 0
@@ -370,7 +383,7 @@ L3:
 printMenu ENDP
 
 ;----------------------------------------------------
-initializeDatabase PROC USES eax
+initializeDatabase PROC USES eax edx
 ;
 ; Creates a database file if one doesn't exist.
 ; Recieves: nothing
