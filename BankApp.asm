@@ -94,7 +94,7 @@ loginMenu PROC USES edx
 loginMenu ENDP
 
 ;----------------------------------------------------
-verifyLogin PROC
+verifyLogin PROC USES eax ebx ecx edx edi esi esp
 ;
 ; Opens the database file and checks if the 
 ; supplied username and password exists in the 
@@ -113,8 +113,12 @@ verifyLogin PROC
 	handleFile dd ?
 
 	fileLine db 64 DUP(?)
-	nameToken db 21 DUP(?)
-	passToken db 21 DUP(?)
+	nameToken db 32 DUP(?)
+	passToken db 32 DUP(?)
+	moneyToken db 32 DUP(?)
+
+	arrayOffset dd ?
+	lineSize dd ?
 
 	endFile db "EOF", endl
 
@@ -142,70 +146,113 @@ read_success:
 	mov eax, fileHandle							; Close the file
 	call CloseFile 
 
-	mov ecx, bytesRead							; Prepare loop
-	mov esi, OFFSET buffer
+	mov ecx, bytesRead
+	mov edi, OFFSET buffer						; Point to the beginning of the file
+	lea ebx, [edi + ecx]						; Point to the end of the file
+
+parse_line:
+	mov esi, edi								; Get position of the first byte
+	mov ecx, ebx 								; Calculate remaining bytes in the string
+	sub ecx, edi
+
+	jna eof										; Jump if end of file is reached
+
+	mov al, 0ah									; Set accumulator to 0x0A (end line)
+	repne scasb 								; Scan string for accumulator while zero flag is clear and ecx > 0
+
+	mov ecx, edi 								; Set ecx to the length of the split
+	dec ecx 
+	sub ecx, esi
+	mov lineSize, ecx							; Save the size of the line 
+
+	; pushad										; Save all registers
+	push edi
+	push ebx
+
+	mov edi, OFFSET fileLine					; Parse a line in the file 
+	rep movsb
+
+	jmp tokenize 								; Split the line into tokens
+
+tokenize:
+	mov arrayOffset, OFFSET nameToken			; Prepare to tokenize the line into three variables
+	mov ecx, lineSize 
 	mov edi, OFFSET fileLine
+	lea ebx, [edi + ecx]
+
+	; TODO: There's an error when tokenizing,
+	; for some reason it writes more bytes than available 
+	; when tokenizing the money variable. 
 
 L1:
-	mov al, [esi]								; Move char into al
-	mov [edi], al								; Move char into the array
+	mov esi, edi 								; Get position of first byte
+	mov ecx, ebx 								; Calculate remaining bytes in the line
+	sub ecx, edi 
 
-	inc esi										; Go to next char
-	inc edi										; Go to next element in array
-	
-	cmp al, 0									; Check if 0x0 (end of file)
-	je eof										; If it is, do something
+	jna verify_login							; Jump if end line is reached
 
-	cmp al, 0ah									; Check if 0x0A (end of line)
-	jne L1										; If not, continue
-	
-	mov edi, OFFSET fileLine					; If it is, get the name in the line
-	mov edx, OFFSET nameToken
+	mov al, ','									; Set accumualtor to comma 
+	repne scasb 								; Scan string for accumulator 
 
-L2:
-	mov al, [edi]								; Move char into al
-	cmp al, 2Ch									; Check if 0x2C (comma character)
-	je compare_names							; If yes, compare names
-	
-	mov [edx], al								; Move char into nameToken
+	mov ecx, edi 								; Set ecx to the length of the split
+	dec ecx 
+	sub ecx, esi
 
-	inc edi										; If it's not, continue
-	inc edx
-	loop L2
+	push edi 									; Save edi
+	mov eax, arrayOffset 						; Set the arrayOffset in eax
 
-compare_names:
+	mov edi, eax 								; Move the token into a variable (can be nameToken, passToken, or moneyToken)
+	rep movsb 					
+
+	add eax, 32d 								; Move the arrayOffset to point to the next variable in array 
+	mov arrayOffset, eax 
+
+	pop edi 									; Restore edi
+
+	jmp L1
+
+verify_login:
+	mov ecx, passByteCount
+	call EncryptPassword
+
 	INVOKE Str_compare,							; Compare the userName with name in file
 		ADDR userName,
 		ADDR nameToken
 
-	je valid_name								; If it exists, exit			
 	ja restart_search							; If it doesn't, search again
 	jb restart_search
 
-valid_name:
-	; TODO: check if the password matches
-	mov eax, 0									; Success, do something
-	mov edx, OFFSET nameToken
-	call WriteString
-	call Crlf
+	INVOKE Str_compare,
+		ADDR userPass,
+		ADDR passToken
+
+	ja restart_search
+	jb restart_search
 
 	jmp quit
 
 restart_search:
-	mov ecx, SIZEOF fileLine					; Reset fileLine array
+	mov ecx, SIZEOF fileLine
 	mov edi, OFFSET fileLine
 	call ResetArray
-
+	
 	mov ecx, SIZEOF nameToken					; Reset nameToken array
 	mov edi, OFFSET nameToken
 	call ResetArray
 
-	mov edi, OFFSET fileLine					; Restart the search
-	jmp L1
+	mov ecx, SIZEOF passToken
+	mov edi, OFFSET passToken
+	call ResetArray
+
+	; popad										; Restore registers
+	pop ebx
+	pop edi
+
+	jmp parse_line
 
 eof:
-	mov ecx, passByteCount						; If the end of the file has been reached,
-	call EncryptPassword						; and no match has been found, then register
+	;mov ecx, passByteCount						; If the end of the file has been reached,
+	;call EncryptPassword						; and no match has been found, then register
 	call RegisterUser							; the user to the database.
 
 	jmp quit
@@ -215,6 +262,10 @@ show_read_error:
 	call WriteString
 
 quit:
+	; TODO: I think theres a problem with returning due to 
+	; stuff being pushed and popped. 
+	pop ebx
+	pop edi
 	ret
 
 verifyLogin ENDP
