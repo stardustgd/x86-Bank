@@ -110,7 +110,8 @@ loginMenu ENDP
 ;----------------------------------------------------
 verifyLogin PROC USES ebx ecx edx edi esi
 	LOCAL buffer[5000]:BYTE, bytesRead:DWORD,
-		  arrayOffset:DWORD, lineSize:DWORD
+		  arrayOffset:DWORD, lineSize:DWORD,
+		  fileLine[96]:BYTE
 ;
 ; Opens the database file and checks if the supplied username
 ; and password exists in the database. If it doesn't, the
@@ -123,15 +124,8 @@ verifyLogin PROC USES ebx ecx edx edi esi
 	errorMessage db "Couldn't open the file.", endl
 	readError db "Couldn't read file.", endl
 	invalidPassword db "Incorrect password.", endl
-
 	BUFFER_SIZE = 5000
 
-	; TODO: Use local variables for the tokens to reduce
-	; the size of the executable. This will affect
-	; mov OFFSET instructions, which will have to be changed
-	; to lea instructions. 
-
-	fileLine db 64 DUP(?)
 	nameToken db 32 DUP(?)
 	passToken db 32 DUP(?)
 	moneyToken db 32 DUP(?)
@@ -192,15 +186,16 @@ parse_line:
 	push edi									; Save edi and ebx
 	push ebx
 
-	mov edi, OFFSET fileLine					; Parse a line in the file 
+	lea edi, fileLine							; Parse a line in the file 
 	rep movsb
 
 	jmp tokenize 								; Split the line into tokens
 
 tokenize:
 	mov arrayOffset, OFFSET nameToken			; Prepare to tokenize the line into three variables
+
 	mov ecx, lineSize 
-	mov edi, OFFSET fileLine
+	lea edi, fileLine
 	lea ebx, [edi + ecx]
 
 L1:
@@ -249,16 +244,20 @@ verify_login:
 	jmp restore_registers
 
 restart_search:
-	mov ecx, SIZEOF fileLine
-	mov edi, OFFSET fileLine
+	mov ecx, SIZEOF fileLine					; Reset fileLine
+	lea edi, fileLine
 	call ResetArray
 	
-	mov ecx, SIZEOF nameToken					; Reset nameToken array
-	mov edi, OFFSET nameToken
+	mov ecx, SIZEOF nameToken					; Reset nameToken
+	lea edi, nameToken
 	call ResetArray
 
-	mov ecx, SIZEOF passToken
-	mov edi, OFFSET passToken
+	mov ecx, SIZEOF passToken					; Reset passToken
+	lea edi, passToken
+	call ResetArray
+
+	mov ecx, SIZEOF moneyToken					; Reset moneyToken
+	lea edi, moneyToken
 	call ResetArray
 
 	pop ebx										; Restore ebx and edi
