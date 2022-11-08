@@ -26,6 +26,7 @@ INCLUDE Irvine32.inc
 	databaseFile db "database.txt",0
 	fileHandle HANDLE ?
 	bytesWritten dd ?
+	bytePosition dd ?
 
 .code
 main PROC
@@ -47,8 +48,8 @@ exit_loop:
 	call WriteString
 
 L1:												; Main program loop
-	call Clrscr
 	call printMenu
+	call Clrscr
 	jmp L1
 
 exit_program::
@@ -125,6 +126,11 @@ verifyLogin PROC USES ebx ecx edx edi esi
 
 	BUFFER_SIZE = 5000
 
+	; TODO: Use local variables for the tokens to reduce
+	; the size of the executable. This will affect
+	; mov OFFSET instructions, which will have to be changed
+	; to lea instructions. 
+
 	fileLine db 64 DUP(?)
 	nameToken db 32 DUP(?)
 	passToken db 32 DUP(?)
@@ -160,6 +166,16 @@ read_success:
 
 parse_line:
 	mov esi, edi								; Get position of the first byte
+
+	mov bytePosition, ebx 						; Calculate the byte position of the line being parsed
+	sub bytePosition, esi 						; End of file - current byte position
+
+	push eax
+	mov eax, bytesRead 
+	sub eax, bytePosition						; Total bytes read - bytePosition
+
+	pop eax
+
 	mov ecx, ebx 								; Calculate remaining bytes in the string
 	sub ecx, edi
 
@@ -256,7 +272,7 @@ eof:
 	jmp restore_registers						; the user to the database.
 
 invalid_password:
-	mov edx, OFFSEt invalidPassword				; Print out error
+	mov edx, OFFSET invalidPassword				; Print out error
 	call WriteString 
 
 	mov eax, 1									; Return eax = 1
