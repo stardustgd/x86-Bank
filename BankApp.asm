@@ -11,7 +11,6 @@
 INCLUDE Irvine32.inc
 
 .const
-	carriageReturn db 0ah
 	endl EQU <0dh, 0ah, 0>
 	newLine EQU <0dh, 0ah>
 
@@ -30,11 +29,20 @@ INCLUDE Irvine32.inc
 
 .code
 main PROC
-	call Clrscr
 	call initializeDatabase
 
+login_loop:										; Repeat login prompt if login fails
+	call Clrscr
 	call loginMenu
+
+	cmp eax, 0
+	je exit_loop 
+
+	call WaitMsg
+	jmp login_loop
 	
+exit_loop:
+	call Clrscr
 	mov edx, OFFSET welcomeText
 	call WriteString
 
@@ -44,6 +52,7 @@ L1:												; Main program loop
 	jmp L1
 
 exit_program::
+	call Clrscr
 	mov edx, OFFSET goodbyeText
 	call WriteString
 
@@ -63,8 +72,8 @@ loginMenu PROC USES edx
 	usernamePrompt db "Username: ", 0
 	passwordPrompt db "Password: ", 0
 
-	userName db 21 DUP(?)
-	userPass db 21 DUP(?)
+	userName db 32 DUP(?)
+	userPass db 32 DUP(?)
 
 	nameByteCount DWORD ?
 	passByteCount DWORD ?
@@ -88,39 +97,38 @@ loginMenu PROC USES edx
 
 	mov passByteCount, eax
 
-	call verifyLogin
-	ret
+	mov ecx, passByteCount						; Encrypt password
+	call EncryptPassword
 
+	INVOKE Str_ucase, ADDR userName				; Convert username to uppercase
+
+	call verifyLogin							; Verify login details
+	ret
 loginMenu ENDP
 
 ;----------------------------------------------------
-verifyLogin PROC USES eax ebx ecx edx edi esi esp
+verifyLogin PROC USES ebx ecx edx edi esi
+	LOCAL buffer[5000]:BYTE, bytesRead:DWORD,
+		  arrayOffset:DWORD, lineSize:DWORD
 ;
-; Opens the database file and checks if the 
-; supplied username and password exists in the 
-; database. If it doesn't, the username and password
-; will be registered to the database.
+; Opens the database file and checks if the supplied username
+; and password exists in the database. If it doesn't, the
+; username and password will be registered to the database.
 ; Recieves: nothing
-; Returns: nothing
+; Returns: eax = 0 if success
+;		   eax = 1 if fail
 ;----------------------------------------------------
 .data 
 	errorMessage db "Couldn't open the file.", endl
 	readError db "Couldn't read file.", endl
+	invalidPassword db "Incorrect password.", endl
 
 	BUFFER_SIZE = 5000
-	buffer db BUFFER_SIZE DUP(?)
-	bytesRead dd ?
-	handleFile dd ?
 
 	fileLine db 64 DUP(?)
 	nameToken db 32 DUP(?)
 	passToken db 32 DUP(?)
 	moneyToken db 32 DUP(?)
-
-	arrayOffset dd ?
-	lineSize dd ?
-
-	endFile db "EOF", endl
 
 .code
 	mov edx, OFFSET databaseFile				; Try to open the database file
@@ -136,7 +144,7 @@ verifyLogin PROC USES eax ebx ecx edx edi esi esp
 
 read_success:
 	mov ecx, BUFFER_SIZE						; Prepare to read file
-	mov edx, OFFSET buffer 
+	lea edx, buffer 
 
 	call ReadFromFile							; Read the file
 	jc show_read_error							; Print out error message if read failed.
@@ -147,7 +155,7 @@ read_success:
 	call CloseFile 
 
 	mov ecx, bytesRead
-	mov edi, OFFSET buffer						; Point to the beginning of the file
+	lea edi, buffer								; Point to the beginning of the file
 	lea ebx, [edi + ecx]						; Point to the end of the file
 
 parse_line:
@@ -165,8 +173,7 @@ parse_line:
 	sub ecx, esi
 	mov lineSize, ecx							; Save the size of the line 
 
-	; pushad										; Save all registers
-	push edi
+	push edi									; Save edi and ebx
 	push ebx
 
 	mov edi, OFFSET fileLine					; Parse a line in the file 
@@ -179,10 +186,6 @@ tokenize:
 	mov ecx, lineSize 
 	mov edi, OFFSET fileLine
 	lea ebx, [edi + ecx]
-
-	; TODO: There's an error when tokenizing,
-	; for some reason it writes more bytes than available 
-	; when tokenizing the money variable. 
 
 L1:
 	mov esi, edi 								; Get position of first byte
@@ -212,24 +215,22 @@ L1:
 	jmp L1
 
 verify_login:
-	mov ecx, passByteCount
-	call EncryptPassword
-
 	INVOKE Str_compare,							; Compare the userName with name in file
 		ADDR userName,
 		ADDR nameToken
 
-	ja restart_search							; If it doesn't, search again
+	ja restart_search							; If it doesn't match, search again
 	jb restart_search
-
-	INVOKE Str_compare,
+	
+	INVOKE Str_compare,							; Compare userPass with pass in file
 		ADDR userPass,
 		ADDR passToken
 
-	ja restart_search
-	jb restart_search
+	ja invalid_password							; If it doesn't match, handle it
+	jb invalid_password
 
-	jmp quit
+	mov eax, 0
+	jmp restore_registers
 
 restart_search:
 	mov ecx, SIZEOF fileLine
@@ -244,28 +245,34 @@ restart_search:
 	mov edi, OFFSET passToken
 	call ResetArray
 
-	; popad										; Restore registers
-	pop ebx
+	pop ebx										; Restore ebx and edi
 	pop edi
 
 	jmp parse_line
 
 eof:
-	;mov ecx, passByteCount						; If the end of the file has been reached,
-	;call EncryptPassword						; and no match has been found, then register
-	call RegisterUser							; the user to the database.
+	call RegisterUser							; If the end of the file has been reached,
+	mov eax, 0									; and no match has been found, then register
+	jmp restore_registers						; the user to the database.
 
-	jmp quit
+invalid_password:
+	mov edx, OFFSEt invalidPassword				; Print out error
+	call WriteString 
+
+	mov eax, 1									; Return eax = 1
+	jmp restore_registers
 
 show_read_error:
 	mov edx, OFFSET readError
 	call WriteString
+	jmp quit 
 
-quit:
-	; TODO: I think theres a problem with returning due to 
-	; stuff being pushed and popped. 
+restore_registers:
 	pop ebx
 	pop edi
+	jmp quit
+
+quit:
 	ret
 
 verifyLogin ENDP
@@ -371,7 +378,7 @@ EncryptPassword PROC USES esi
 ;----------------------------------------------------
 .data
 	KEY = 239
-	BUFMAX = 21
+	BUFMAX = 32
 
 .code
 	mov esi, 0
@@ -440,8 +447,7 @@ initializeDatabase PROC USES eax edx
 ; Recieves: nothing
 ; Returns: fileHandle = valid file handle 
 ;----------------------------------------------------
-.data 
-	databaseMsg db "Database doesn't exist... Creating one.",endl
+.data
 	programTitle db "x86 Bank", 0
 
 .code
@@ -454,9 +460,6 @@ initializeDatabase PROC USES eax edx
 
 	cmp eax, INVALID_HANDLE_VALUE				; Check if the file exists
 	jne quit									; If it does, do nothing
-
-	mov edx, OFFSET databaseMsg
-	call WriteString
 
 	mov edx, OFFSET databaseFile				; If it doesn't, create one
 	call CreateOutputFile
