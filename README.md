@@ -4,9 +4,9 @@
 
 - User sign into bank account
 - Deposit and withdraw money
-- Be able to view account balance
-- Be able to calculate interest
-- Display a log of the user's transactions
+- View account balance
+- Calculate interest
+- ~~Display a log of the user's transactions~~
 
 ## Group Members
 
@@ -18,11 +18,8 @@
 
 ## Deadlines
 
-- 10/13/2022
-  - Decide on meeting times and project idea.
-
 - 10/27/2022
-  - Group progress report due.
+  - Group progress report due
 
 - 12/1/2022
   - Group project and presentation due
@@ -31,8 +28,25 @@
 
 - Sundays at 3:00pm
 
+## Weekly Meetings
+
+- 10/13/2022
+  - Agree on meeting times and project idea.
+
+- 10/16/2022
+  - Discuss features of the program and begin coding
+
+- 10/23/2022
+  - Implement some features of the program and begin the group report
+
+- 10/30/2022
+  - Discuss individual progress on the project and future plans
+
+- 11/6/2022
+  - Discuss individual progress on the project and begin work on the final group report
+
 ## Resources Needed
 
-- Visual Studio 2017
+- Visual Studio
 - Google Docs
 - Google Forms
