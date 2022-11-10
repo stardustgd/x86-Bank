@@ -61,7 +61,7 @@ exit_program::
 main ENDP
 
 ;----------------------------------------------------
-loginMenu PROC USES edx
+loginMenu PROC USES ecx edx
 ;
 ; User login screen that takes in a username and 
 ; password, then verifies that it matches with the
@@ -110,8 +110,9 @@ loginMenu ENDP
 ;----------------------------------------------------
 verifyLogin PROC USES ebx ecx edx edi esi
 	LOCAL buffer[5000]:BYTE, bytesRead:DWORD,
-		  arrayOffset:DWORD, lineSize:DWORD,
-		  fileLine[96]:BYTE
+		  tokenOffset:DWORD, lineSize:DWORD,
+		  fileLine[96]:BYTE, nameToken[32]:BYTE, 
+		  passToken[32]:BYTE, moneyToken[32]:BYTE
 ;
 ; Opens the database file and checks if the supplied username
 ; and password exists in the database. If it doesn't, the
@@ -125,10 +126,6 @@ verifyLogin PROC USES ebx ecx edx edi esi
 	readError db "Couldn't read file.", endl
 	invalidPassword db "Incorrect password.", endl
 	BUFFER_SIZE = 5000
-
-	nameToken db 32 DUP(?)
-	passToken db 32 DUP(?)
-	moneyToken db 32 DUP(?)
 
 .code
 	mov edx, OFFSET databaseFile				; Try to open the database file
@@ -192,7 +189,8 @@ parse_line:
 	jmp tokenize 								; Split the line into tokens
 
 tokenize:
-	mov arrayOffset, OFFSET nameToken			; Prepare to tokenize the line into three variables
+	lea eax, nameToken 							; Prepare to tokenize the line into three variables
+	mov tokenOffset, eax
 
 	mov ecx, lineSize 
 	lea edi, fileLine
@@ -213,13 +211,13 @@ L1:
 	sub ecx, esi
 
 	push edi 									; Save edi
-	mov eax, arrayOffset 						; Set the arrayOffset in eax
+	mov eax, tokenOffset 						; Set the tokenOffset in eax
 
 	mov edi, eax 								; Move the token into a variable (can be nameToken, passToken, or moneyToken)
 	rep movsb 					
 
-	add eax, 32d 								; Move the arrayOffset to point to the next variable in array 
-	mov arrayOffset, eax 
+	sub eax, 32d 								; Move tokenOffset to point to the next token
+	mov tokenOffset, eax 
 
 	pop edi 									; Restore edi
 
@@ -239,6 +237,9 @@ verify_login:
 
 	ja invalid_password							; If it doesn't match, handle it
 	jb invalid_password
+
+	; TODO: Create a user struct and
+	; store the tokens into it.
 
 	mov eax, 0
 	jmp restore_registers
