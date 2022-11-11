@@ -10,6 +10,12 @@
 
 INCLUDE Irvine32.inc
 
+User STRUCT 
+	username BYTE 32 DUP(?)
+	password BYTE 32 DUP(?)
+	balance DWORD ? 
+User ENDS
+
 .const
 	endl EQU <0dh, 0ah, 0>
 	newLine EQU <0dh, 0ah>
@@ -27,6 +33,8 @@ INCLUDE Irvine32.inc
 	fileHandle HANDLE ?
 	bytesWritten dd ?
 	bytePosition dd ?
+
+	; currentUser User <>
 
 .code
 main PROC
@@ -235,13 +243,22 @@ verify_login:
 		ADDR userPass,
 		ADDR passToken
 
-	ja invalid_password							; If it doesn't match, handle it
+	ja invalid_password							; If it doesn't match, return 1
 	jb invalid_password
 
-	; TODO: Create a user struct and
-	; store the tokens into it.
+	lea edx, moneyToken							; Convert moneyToken to an integer
+	mov ecx, SIZEOF moneyToken
+	call ParseInteger32
 
-	mov eax, 0
+	mov currentUser.balance, eax				; Store balance into struct
+
+	INVOKE Str_copy, ADDR nameToken, 			; Store username into struct
+		ADDR currentUser.username
+
+	INVOKE Str_copy, ADDR passToken, 			; Store password into struct 
+		ADDR currentUser.password
+
+	mov eax, 0									; Return eax = 0 (success)
 	jmp restore_registers
 
 restart_search:
