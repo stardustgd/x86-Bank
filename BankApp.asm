@@ -11,9 +11,9 @@
 INCLUDE Irvine32.inc
 
 User STRUCT 
-	username BYTE 32 DUP(?)
-	password BYTE 32 DUP(?)
-	balance DWORD ? 
+	userUsername BYTE 32 DUP(?)
+	userPassword BYTE 32 DUP(?)
+	userBalance DWORD ? 
 User ENDS
 
 .const
@@ -34,7 +34,7 @@ User ENDS
 	bytesWritten dd ?
 	bytePosition dd ?
 
-	; currentUser User <>
+	currentUser User <>
 
 .code
 main PROC
@@ -43,6 +43,7 @@ main PROC
 login_loop:										; Repeat login prompt if login fails
 	call Clrscr
 	call loginMenu
+	call verifyLogin
 
 	cmp eax, 0
 	je exit_loop 
@@ -111,7 +112,6 @@ loginMenu PROC USES ecx edx
 
 	INVOKE Str_ucase, ADDR userName				; Convert username to uppercase
 
-	call verifyLogin							; Verify login details
 	ret
 loginMenu ENDP
 
@@ -250,13 +250,13 @@ verify_login:
 	mov ecx, SIZEOF moneyToken
 	call ParseInteger32
 
-	mov currentUser.balance, eax				; Store balance into struct
+	mov currentUser.userBalance, eax			; Store balance into struct
 
 	INVOKE Str_copy, ADDR nameToken, 			; Store username into struct
-		ADDR currentUser.username
+		ADDR currentUser.userUsername
 
 	INVOKE Str_copy, ADDR passToken, 			; Store password into struct 
-		ADDR currentUser.password
+		ADDR currentUser.userPassword
 
 	mov eax, 0									; Return eax = 0 (success)
 	jmp restore_registers
@@ -532,20 +532,19 @@ Withdraw PROC USES edx ebx eax
 	withdrawPrompt db "Please enter the amount you would like to withdraw: $", 0
 	withdrawSuccess db "You have successfully withdrawn $", 0
 	withdrawError db "The withdraw has not been completed. (You have insufficient funds to do so.)", endl
-	balance dd 100
 
 .code 
 	mov edx, OFFSET withdrawPrompt				; Print out prompt and read user int
 	call WriteString 
 	call ReadDec
 
-	mov ebx, balance
+	mov ebx, currentUser.userBalance
 	cmp eax, ebx								; Compare the input with the account balance
 	jl L1										; Complete withdraw if input is less than balance
 	jmp show_withdraw_error						; Print out error if input is greater than balance
 
 L1:
-	sub balance, eax							; Withdraw the money from the user's account 
+	sub currentUser.userBalance, eax			; Withdraw the money from the user's account 
 
 	mov edx, OFFSET withdrawSuccess				; Print out the withdraw success
 	call WriteString
