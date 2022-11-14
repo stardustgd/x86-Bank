@@ -26,9 +26,7 @@ Withdraw PROTO
 ;----------------------------------------
 ;             Database Utilities
 ;----------------------------------------
-EncryptPassword PROTO
 InitializeDatabase PROTO
 LoginMenu PROTO 
 RegisterUser PROTO
-ResetArray PROTO
 VerifyLogin PROTO
