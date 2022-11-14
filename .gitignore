@@ -1,2 +1,6 @@
 *.temp.*
+*.obj*
+*.exe*
+*.err*
+compile.bat
 database.txt
