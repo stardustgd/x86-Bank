@@ -45,6 +45,9 @@
 - 11/6/2022
   - Discuss individual progress on the project and begin work on the final group report
 
+- 11/13/2022
+  - Finish a prototype version of a multimodule program and discuss future plans
+
 ## Resources Needed
 
 - Visual Studio
