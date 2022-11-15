@@ -14,6 +14,7 @@ User STRUCT
 	userUsername BYTE 32 DUP(?)
 	userPassword BYTE 32 DUP(?)
 	userBalance DWORD ? 
+	bytePosition DWORD ?
 User ENDS
 
 .const
@@ -32,7 +33,6 @@ User ENDS
 	databaseFile db "database.txt",0
 	fileHandle HANDLE ?
 	bytesWritten dd ?
-	bytePosition dd ?
 
 	currentUser User <>
 
@@ -166,12 +166,13 @@ read_success:
 parse_line:
 	mov esi, edi								; Get position of the first byte
 
-	mov bytePosition, ebx 						; Calculate the byte position of the line being parsed
-	sub bytePosition, esi 						; End of file - current byte position
+	mov currentUser.bytePosition, ebx 			; Calculate the byte position of the line being parsed
+	sub currentUser.bytePosition, esi 			; End of file - current byte position
 
 	push eax
 	mov eax, bytesRead 
-	sub eax, bytePosition						; Total bytes read - bytePosition
+	sub eax, currentUser.bytePosition			; Total bytes read - bytePosition
+	mov currentUser.bytePosition, eax
 
 	pop eax
 
@@ -605,5 +606,89 @@ Logout PROC
 
 	ret
 Logout ENDP
+
+;----------------------------------------------------
+UpdateDatabase PROC
+	LOCAL buffer[5000]:BYTE, fileLine[96]:BYTE,
+		  currentByte:DWORD, lineSize:DWORD,
+		  bytesRead:DWORD
+;
+; Updates the current user's balance in the database
+; whenever a deposit/withdraw is done. 
+; Recieves: nothing
+; Returns: nothing
+;----------------------------------------------------
+.data
+	BUFFER_SIZE = 5000
+
+.code
+	mov edx, OFFSET databaseFile
+	call OpenInputFile
+	mov fileHandle, eax 
+
+	cmp eax, INVALID_HANDLE_VALUE
+	jne read_success
+
+	mov edx, OFFSET errorMessage
+	call WriteString
+	jmp quit
+
+read_success:
+	mov ecx, BUFFER_SIZE
+	lea edx, buffer
+
+	call ReadFromFile
+	jc show_read_error
+
+	mov bytesRead, eax
+
+	mov eax, fileHandle
+	call CloseFile
+
+	mov ecx, bytesRead
+	lea edi, buffer
+	lea ebx, [edi + ecx]
+
+	; Create the new file
+	; push edx
+	; mov edx, OFFSET databaseFile
+	; call CreateOutputFile
+	; mov fileHandle, eax
+	; pop edx
+
+	; TODO: get the line parsing to work properly
+
+parse_line:
+	mov esi, edi
+	mov ecx, ebx
+	sub ecx, edi
+
+	jna quit
+
+	mov al, 0ah
+	repne scasb
+
+	mov ecx, edi
+	dec ecx
+	sub ecx, esi
+
+	push edi
+	
+	lea edi, fileLine
+	rep movsb
+
+	lea edx, fileLine
+	call WriteString
+
+	pop edi
+
+	jmp parse_line
+
+show_read_error:
+	jmp quit
+
+quit:	
+	ret
+UpdateDatabase ENDP
 
 END main
