@@ -185,7 +185,7 @@ parse_line:
 	repne scasb 								; Scan string for accumulator while zero flag is clear and ecx > 0
 
 	mov ecx, edi 								; Set ecx to the length of the split
-	dec ecx 
+	; dec ecx 
 	sub ecx, esi
 	mov lineSize, ecx							; Save the size of the line 
 
@@ -321,7 +321,7 @@ RegisterUser PROC USES eax edx
 .data
 	registerPrompt db "You are not registered with x86 Bank. Would you like to register? (Y/N)", endl
 	commaSeparator db ","
-	initializeMoney db ",500", newLine			; Initilaize account with $500
+	initializeMoney db ",500", 0ah				; Initilaize account with $500
 
 .code
 L1:
@@ -551,6 +551,7 @@ L1:
 	call WriteString
 	call WriteDec
 	call Crlf
+	call UpdateDatabase
 
 	call WaitMsg								; Wait for user to press any key to continue
 	jmp quit
@@ -587,8 +588,8 @@ PrintLog PROC USES edx
 ; Recieves: nothing
 ; Returns: nothing
 ;----------------------------------------------------
-	mov edx, OFFSET printLogString
-	call WriteString
+	mov eax, currentUser.userBalance
+	call WriteInt
 
 	call WaitMsg
 
@@ -620,6 +621,9 @@ UpdateDatabase PROC
 ;----------------------------------------------------
 .data
 	BUFFER_SIZE = 5000
+	newLineChar db 0ah
+	moneyToken db 32 DUP(?)
+	moneyNumChar dd ?
 
 .code
 	mov edx, OFFSET databaseFile
@@ -649,17 +653,27 @@ read_success:
 	lea edi, buffer
 	lea ebx, [edi + ecx]
 
-	; Create the new file
-	; push edx
-	; mov edx, OFFSET databaseFile
-	; call CreateOutputFile
-	; mov fileHandle, eax
-	; pop edx
+	; Override the file
+	mov edx, OFFSET databaseFile
+	call CreateOutputFile
+	mov fileHandle, eax
 
 	; TODO: get the line parsing to work properly
+	; In the file writing, I only need to write the 0ah byte for
+	; a new line, so I can remove the 0dh byte. I also have to modify
+	; the method I'm using to get the bytePosition of the user
 
 parse_line:
 	mov esi, edi
+
+	mov currentByte, ebx 
+	sub currentByte, esi
+
+	mov eax, bytesRead
+	sub eax, currentByte
+
+	mov currentByte, eax 
+
 	mov ecx, ebx
 	sub ecx, edi
 
@@ -669,25 +683,84 @@ parse_line:
 	repne scasb
 
 	mov ecx, edi
-	dec ecx
 	sub ecx, esi
+	mov lineSize, ecx
 
-	push edi
-	
+	pushad
+
+	mov eax, currentByte
+	cmp currentUser.bytePosition, eax
+	je print_new
+
 	lea edi, fileLine
 	rep movsb
 
+	mov eax, fileHandle
+	mov ecx, lineSize
 	lea edx, fileLine
-	call WriteString
 
-	pop edi
+	call WriteToFile
+	
+	mov ecx, SIZEOF lineSize
+	lea edi, fileLine
+	call ResetArray
 
+	popad
+	jmp parse_line
+
+print_new:
+	pushad
+
+	mov eax, fileHandle
+	mov ecx, nameByteCount
+	lea edx, currentUser.userUsername
+	call WriteToFile
+
+	mov eax, fileHandle
+	mov ecx, 1
+	lea edx, commaSeparator
+	call WriteToFile
+
+	mov eax, fileHandle
+	mov ecx, passByteCount
+	lea edx, currentUser.userPassword
+	call WriteToFile
+	
+	mov eax, fileHandle
+	mov ecx, 1
+	lea edx, commaSeparator
+	call WriteToFile
+
+	; TODO: parse integer to string
+	; INVOKE wsprintf,
+	; 	ADDR moneyToken,
+	; 	ADDR currentUser.userBalance
+
+	; push eax
+	; movzx eax, moneyToken
+	; call WriteInt
+	; pop eax
+
+	; ; then write to file
+	; mov ecx, eax
+	; mov eax, fileHandle
+	; lea edx, moneyToken
+	; call WriteToFile
+
+	mov eax, fileHandle
+	mov ecx, 1
+	mov edx, OFFSET newLineChar
+	call WriteToFile
+
+	popad
 	jmp parse_line
 
 show_read_error:
 	jmp quit
 
-quit:	
+quit:
+	mov eax, fileHandle
+	call CloseFile	
 	ret
 UpdateDatabase ENDP
 
