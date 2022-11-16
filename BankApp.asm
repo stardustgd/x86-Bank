@@ -345,6 +345,14 @@ L1:
 	jmp L1										; Repeat until valid input
 
 register_user:
+	mov currentUser.userBalance, 500			; Store balance into struct
+
+	INVOKE Str_copy, ADDR userName, 			; Store username into struct
+		ADDR currentUser.userUsername
+
+	INVOKE Str_copy, ADDR userPass, 			; Store password into struct 
+		ADDR currentUser.userPassword
+
 	INVOKE CreateFile,							; Open a new file handle
 		ADDR databaseFile, GENERIC_WRITE,
 		DO_NOT_SHARE, NULL, OPEN_EXISTING,
@@ -379,6 +387,8 @@ terminate_program:
 	call Logout
 
 quit:
+	mov eax, fileHandle
+	call CloseFile
 	ret
 RegisterUser ENDP
 
