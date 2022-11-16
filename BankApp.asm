@@ -609,10 +609,11 @@ Logout PROC
 Logout ENDP
 
 ;----------------------------------------------------
-UpdateDatabase PROC
+UpdateDatabase PROC USES eax ebx ecx edx edi esi
 	LOCAL buffer[5000]:BYTE, fileLine[96]:BYTE,
-		  currentByte:DWORD, lineSize:DWORD,
-		  bytesRead:DWORD
+		  moneyToken[32]:BYTE, currentByte:DWORD, 
+		  lineSize:DWORD, bytesRead:DWORD,
+		  newLineChar:BYTE
 ;
 ; Updates the current user's balance in the database
 ; whenever a deposit/withdraw is done. 
@@ -621,27 +622,27 @@ UpdateDatabase PROC
 ;----------------------------------------------------
 .data
 	BUFFER_SIZE = 5000
-	newLineChar db 0ah
-	moneyToken db 32 DUP(?)
-	moneyNumChar dd ?
+	numFormat db "%d",0
 
 .code
-	mov edx, OFFSET databaseFile
+	mov newLineChar, 0ah						; Initialize newLineChar
+
+	mov edx, OFFSET databaseFile				; Prepare to read the database file
 	call OpenInputFile
 	mov fileHandle, eax 
 
-	cmp eax, INVALID_HANDLE_VALUE
+	cmp eax, INVALID_HANDLE_VALUE				; File handling
 	jne read_success
 
-	mov edx, OFFSET errorMessage
+	mov edx, OFFSET errorMessage				; Print out error
 	call WriteString
 	jmp quit
 
 read_success:
 	mov ecx, BUFFER_SIZE
-	lea edx, buffer
+	lea edx, buffer	
 
-	call ReadFromFile
+	call ReadFromFile							; Read the file
 	jc show_read_error
 
 	mov bytesRead, eax
@@ -649,22 +650,16 @@ read_success:
 	mov eax, fileHandle
 	call CloseFile
 
-	mov ecx, bytesRead
+	mov ecx, bytesRead							; Prepare the loop for parsing lines
 	lea edi, buffer
 	lea ebx, [edi + ecx]
 
-	; Override the file
-	mov edx, OFFSET databaseFile
+	mov edx, OFFSET databaseFile				; Begin to override the file
 	call CreateOutputFile
 	mov fileHandle, eax
 
-	; TODO: get the line parsing to work properly
-	; In the file writing, I only need to write the 0ah byte for
-	; a new line, so I can remove the 0dh byte. I also have to modify
-	; the method I'm using to get the bytePosition of the user
-
 parse_line:
-	mov esi, edi
+	mov esi, edi								; Calculate the current byte 
 
 	mov currentByte, ebx 
 	sub currentByte, esi
@@ -672,36 +667,35 @@ parse_line:
 	mov eax, bytesRead
 	sub eax, currentByte
 
-	mov currentByte, eax 
+	mov currentByte, eax 						; Store the current byte
 
-	mov ecx, ebx
+	mov ecx, ebx								; Calculate remaining bytes in the file
 	sub ecx, edi
 
-	jna quit
+	jna quit									; Quit if eof
 
-	mov al, 0ah
-	repne scasb
+	mov al, 0ah									; Set accumulator to 0x0A (end line)
+	repne scasb									; Scan string for accumulator
 
-	mov ecx, edi
+	mov ecx, edi								; Set ecx to length of the split
 	sub ecx, esi
 	mov lineSize, ecx
 
 	pushad
 
-	mov eax, currentByte
-	cmp currentUser.bytePosition, eax
-	je print_new
+	mov eax, currentByte						; Check if the current byte is the same as the
+	cmp currentUser.bytePosition, eax			; current user's byte position
+	je print_new								; If it is, write the new line to file
 
-	lea edi, fileLine
+	lea edi, fileLine							; If it's not, write the original data to the file
 	rep movsb
 
 	mov eax, fileHandle
 	mov ecx, lineSize
 	lea edx, fileLine
-
 	call WriteToFile
 	
-	mov ecx, SIZEOF lineSize
+	mov ecx, SIZEOF lineSize					; Reset the lineSize array
 	lea edi, fileLine
 	call ResetArray
 
@@ -711,45 +705,39 @@ parse_line:
 print_new:
 	pushad
 
-	mov eax, fileHandle
+	mov eax, fileHandle							; Write the username
 	mov ecx, nameByteCount
 	lea edx, currentUser.userUsername
 	call WriteToFile
 
-	mov eax, fileHandle
+	mov eax, fileHandle							; Write a comma
 	mov ecx, 1
 	lea edx, commaSeparator
 	call WriteToFile
 
-	mov eax, fileHandle
+	mov eax, fileHandle							; Write the password
 	mov ecx, passByteCount
 	lea edx, currentUser.userPassword
 	call WriteToFile
 	
-	mov eax, fileHandle
+	mov eax, fileHandle							; Write a comma
 	mov ecx, 1
 	lea edx, commaSeparator
 	call WriteToFile
 
-	; TODO: parse integer to string
-	; INVOKE wsprintf,
-	; 	ADDR moneyToken,
-	; 	ADDR currentUser.userBalance
+	INVOKE wsprintf,							; Parse integer to string using wsprintf		
+		ADDR moneyToken,
+		ADDR numFormat,
+		[currentUser.userBalance]
 
-	; push eax
-	; movzx eax, moneyToken
-	; call WriteInt
-	; pop eax
-
-	; ; then write to file
-	; mov ecx, eax
-	; mov eax, fileHandle
-	; lea edx, moneyToken
-	; call WriteToFile
-
+	mov ecx, eax								; Write the balance
 	mov eax, fileHandle
+	lea edx, moneyToken
+	call WriteToFile
+
+	mov eax, fileHandle							; Write newline 
 	mov ecx, 1
-	mov edx, OFFSET newLineChar
+	lea edx, newLineChar
 	call WriteToFile
 
 	popad
@@ -759,7 +747,7 @@ show_read_error:
 	jmp quit
 
 quit:
-	mov eax, fileHandle
+	mov eax, fileHandle							; Close the file
 	call CloseFile	
 	ret
 UpdateDatabase ENDP
