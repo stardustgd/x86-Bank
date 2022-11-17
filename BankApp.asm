@@ -185,7 +185,6 @@ parse_line:
 	repne scasb 								; Scan string for accumulator while zero flag is clear and ecx > 0
 
 	mov ecx, edi 								; Set ecx to the length of the split
-	; dec ecx 
 	sub ecx, esi
 	mov lineSize, ecx							; Save the size of the line 
 
@@ -223,7 +222,8 @@ L1:
 	mov eax, tokenOffset 						; Set the tokenOffset in eax
 
 	mov edi, eax 								; Move the token into a variable (can be nameToken, passToken, or moneyToken)
-	rep movsb 					
+	rep movsb 
+	mov BYTE PTR[edi], 0						; Null terminate the token			
 
 	sub eax, 32d 								; Move tokenOffset to point to the next token
 	mov tokenOffset, eax 
@@ -237,15 +237,13 @@ verify_login:
 		ADDR userName,
 		ADDR nameToken
 
-	ja restart_search							; If it doesn't match, search again
-	jb restart_search
+	jne restart_search							; If it doesn't match, search again
 	
 	INVOKE Str_compare,							; Compare userPass with pass in file
 		ADDR userPass,
 		ADDR passToken
 
-	ja invalid_password							; If it doesn't match, return 1
-	jb invalid_password
+	jne invalid_password						; If it doesn't match, return 1
 
 	lea edx, moneyToken							; Convert moneyToken to an integer
 	mov ecx, SIZEOF moneyToken
@@ -523,11 +521,37 @@ Deposit PROC USES edx
 ; Recieves: nothing
 ; Returns: nothing
 ;----------------------------------------------------
-	mov edx, OFFSET depositString
+.data
+	depositPrompt db "Please enter the amount you would like to deposit: $", 0
+	depositSuccess db "You have successfully deposited $", 0
+	depositError db "The deposit has not been completed. (Invalid Amount)", endl
+
+.code
+	mov edx, OFFSET depositPrompt
 	call WriteString
+	call ReadInt
+
+	cmp eax, 0
+	jge L1
+
+	mov edx, OFFSET depositError
+	call WriteString
+	call WaitMsg
+	jmp quit
+
+L1:
+	add currentUser.userBalance, eax
+
+	mov edx, OFFSET depositSuccess
+	call WriteString
+	call WriteDec
+	call Crlf
+	call UpdateDatabase
 
 	call WaitMsg
 
+
+quit:
 	ret
 Deposit ENDP
 
