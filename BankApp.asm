@@ -527,29 +527,28 @@ Deposit PROC USES edx
 	depositError db "The deposit has not been completed. (Invalid Amount)", endl
 
 .code
-	mov edx, OFFSET depositPrompt
+	mov edx, OFFSET depositPrompt				; Print out prompt and read user int
 	call WriteString
-	call ReadInt
+	call ReadDec
 
-	cmp eax, 0
-	jge L1
+	cmp eax, 0									; Check if input is greater than 0
+	jg L1										; If it is, perform deposit
 
-	mov edx, OFFSET depositError
+	mov edx, OFFSET depositError				; If it's not, print out error
 	call WriteString
 	call WaitMsg
 	jmp quit
 
 L1:
-	add currentUser.userBalance, eax
+	add currentUser.userBalance, eax			; Add to the user's balance
 
-	mov edx, OFFSET depositSuccess
+	mov edx, OFFSET depositSuccess				; Print out success
 	call WriteString
 	call WriteDec
 	call Crlf
-	call UpdateDatabase
+	call UpdateDatabase							; Update database
 
 	call WaitMsg
-
 
 quit:
 	ret
@@ -566,12 +565,16 @@ Withdraw PROC USES edx ebx eax
 .data
 	withdrawPrompt db "Please enter the amount you would like to withdraw: $", 0
 	withdrawSuccess db "You have successfully withdrawn $", 0
-	withdrawError db "The withdraw has not been completed. (You have insufficient funds to do so.)", endl
+	withdrawError db "The withdraw has not been completed. (You have insufficient funds to do so)", endl
+	withdrawInvalid db "The withdraw has not been completed. (Invalid amount)", endl
 
 .code 
 	mov edx, OFFSET withdrawPrompt				; Print out prompt and read user int
 	call WriteString 
 	call ReadDec
+
+	cmp eax, 0
+	jle show_invalid_error
 
 	mov ebx, currentUser.userBalance
 	cmp eax, ebx								; Compare the input with the account balance
@@ -588,6 +591,12 @@ L1:
 	call UpdateDatabase
 
 	call WaitMsg								; Wait for user to press any key to continue
+	jmp quit
+
+show_invalid_error:
+	mov edx, OFFSET withdrawInvalid
+	call WriteString
+	call WaitMsg
 	jmp quit
 
 show_withdraw_error:
