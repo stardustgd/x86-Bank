@@ -27,7 +27,6 @@ User ENDS
 
 	depositString db "Deposit", endl
 	withdrawString db "Withdraw", endl
-	interestString db "Interest", endl
 	printLogString db "Print log", endl
 
 	databaseFile db "database.txt",0
@@ -609,15 +608,35 @@ quit:
 Withdraw ENDP
 
 ;----------------------------------------------------
-Interest PROC USES edx
+Interest PROC USES eax ecx edx
 ;
 ; Calculates the user's accumulated interest
-; using the formula: 
+; using the formula: A = P(1 + rt)
 ; Recieves: nothing
 ; Returns: nothing
 ;----------------------------------------------------
-	mov edx, OFFSET interestString
+.data
+	interestPrompt db "Enter amount of years to calculate interest for: ", 0
+	interestTotal db "Total amount of interest is: $", 0
+	interestRate = 3
+
+.code
+	mov edx, OFFSET interestPrompt				; Print out prompt and get user input
 	call WriteString
+	call ReadDec
+
+	mov ecx, eax								; Calculate rt
+	mov eax, interestRate
+	imul eax, ecx
+
+	add eax, 1									; Add 1 to rt
+	mov ecx, currentUser.userBalance
+	imul eax,ecx								; Multiply by P
+
+	mov edx, OFFSET interestTotal				; Print out the total interest
+	call WriteString
+	call WriteDec
+	call Crlf
 
 	call WaitMsg
 
