@@ -25,10 +25,6 @@ User ENDS
 	welcomeText db "Welcome to the x86 Bank!", endl
 	goodbyeText db "Thank you for banking with us.", endl
 
-	depositString db "Deposit", endl
-	withdrawString db "Withdraw", endl
-	printLogString db "Print log", endl
-
 	databaseFile db "database.txt",0
 	fileHandle HANDLE ?
 	bytesWritten dd ?
@@ -448,7 +444,7 @@ printMenu PROC USES eax ebx ecx edx
 		db '3'
 		dd Interest
 		db '4'
-		dd PrintLog
+		dd PrintBalance
 		db '5'
 		dd Logout
 		NumberOfEntries = ($ - CaseTable) / EntrySize
@@ -457,7 +453,7 @@ printMenu PROC USES eax ebx ecx edx
 			"1. Deposit Money", newLine,
 			"2. Withdraw Money", newLine,
 			"3. Calculate Interest", newLine,
-			"4. Print log of previous transactions", newLine,
+			"4. Show Current Balance", newLine,
 			"5. Log out", endl
 
 .code
@@ -617,7 +613,7 @@ Interest PROC USES eax ecx edx
 ;----------------------------------------------------
 .data
 	interestPrompt db "Enter amount of years to calculate interest for: ", 0
-	interestTotal db "Total amount of interest is: $", 0
+	interestTotal db "Total interest at a rate of 3% is: $", 0
 	interestRate = 3
 
 .code
@@ -644,19 +640,26 @@ Interest PROC USES eax ecx edx
 Interest ENDP
 
 ;----------------------------------------------------
-PrintLog PROC USES edx
+PrintBalance PROC USES eax edx
 ;
-; Prints a log of the user's previous transactions.
+; Prints the user's current balance.
 ; Recieves: nothing
 ; Returns: nothing
 ;----------------------------------------------------
+.data
+	balanceString db "Your current balance is $",0
+
+.code
+	mov edx, OFFSET balanceString
+	call WriteString
+
 	mov eax, currentUser.userBalance
-	call WriteInt
+	call WriteDec
+	call Crlf
 
 	call WaitMsg
-
 	ret
-PrintLog ENDP
+PrintBalance ENDP
 
 ;----------------------------------------------------
 Logout PROC
