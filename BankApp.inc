@@ -17,9 +17,9 @@ User ENDS
 ;              Bank Utilities
 ;----------------------------------------
 Deposit PROTO
-GetBalance PROTO
 Interest PROTO
 Logout PROTO
+PrintBalance PROTO
 PrintMenu PROTO
 Withdraw PROTO
 
@@ -29,4 +29,5 @@ Withdraw PROTO
 InitializeDatabase PROTO
 LoginMenu PROTO 
 RegisterUser PROTO
+UpdateDatabase PROTO
 VerifyLogin PROTO

@@ -22,25 +22,6 @@ Deposit PROC USES edx
 Deposit ENDP
 
 ;----------------------------------------------------
-GetBalance PROC USES edx
-;
-; Prints a log of the user's previous transactions.
-; Recieves: nothing
-; Returns: nothing
-;----------------------------------------------------
-.data
-    balanceString db "Get balance", endl
-
-.code
-	mov edx, OFFSET balanceString
-	call WriteString
-
-	call WaitMsg
-
-	ret
-GetBalance ENDP
-
-;----------------------------------------------------
 Interest PROC USES edx
 ;
 ; Calculates the user's accumulated interest
@@ -71,6 +52,25 @@ Logout PROC
 
 	ret
 Logout ENDP
+
+;----------------------------------------------------
+PrintBalance PROC USES edx
+;
+; Prints the user's current balance.
+; Recieves: nothing
+; Returns: nothing
+;----------------------------------------------------
+.data
+    balanceString db "Get balance", endl
+
+.code
+	mov edx, OFFSET balanceString
+	call WriteString
+
+	call WaitMsg
+
+	ret
+PrintBalance ENDP
 
 ;----------------------------------------------------
 PrintMenu PROC USES ebx ecx edx
