@@ -1,5 +1,10 @@
 INCLUDE BankApp.inc 
 
+.data
+	databaseFile db "database.txt",0
+	fileHandle HANDLE ?
+	bytesWritten dd 0
+
 .code
 ;----------------------------------------------------
 EncryptPassword PROC PRIVATE USES esi
@@ -9,10 +14,6 @@ EncryptPassword PROC PRIVATE USES esi
 ; Recieves: ecx = size of buffer
 ; Returns: nothing
 ;----------------------------------------------------
-.data
-	KEY = 239
-	BUFMAX = 32
-
 .code
 	mov esi, 0
 	
@@ -111,7 +112,7 @@ RegisterUser PROC USES eax edx
 .data
 	registerPrompt db "You are not registered with x86 Bank. Would you like to register? (Y/N)", endl
 	commaSeparator db ","
-	initializeMoney db ",500", newLine			; Initilaize account with $500
+	initializeMoney db ",500", 0ah				; Initilaize account with $500
 
 .code
 L1:
@@ -135,6 +136,14 @@ L1:
 	jmp L1										; Repeat until valid input
 
 register_user:
+	mov currentUser.userBalance, 500			; Store balance into struct
+
+	INVOKE Str_copy, ADDR userName, 			; Store username into struct
+		ADDR currentUser.userUsername
+
+	INVOKE Str_copy, ADDR userPass, 			; Store password into struct 
+		ADDR currentUser.userPassword
+
 	INVOKE CreateFile,							; Open a new file handle
 		ADDR databaseFile, GENERIC_WRITE,
 		DO_NOT_SHARE, NULL, OPEN_EXISTING,
@@ -169,6 +178,8 @@ terminate_program:
 	call Logout
 
 quit:
+	mov eax, fileHandle
+	call CloseFile
 	ret
 RegisterUser ENDP
 
@@ -191,6 +202,150 @@ L1:
 
 	ret 
 ResetArray ENDP
+
+;----------------------------------------------------
+UpdateDatabase PROC USES eax ebx ecx edx edi esi
+	LOCAL buffer[5000]:BYTE, fileLine[96]:BYTE,
+		  moneyToken[32]:BYTE, currentByte:DWORD, 
+		  lineSize:DWORD, bytesRead:DWORD,
+		  newLineChar:BYTE
+;
+; Updates the current user's balance in the database
+; whenever a deposit/withdraw is done. 
+; Recieves: nothing
+; Returns: nothing
+;----------------------------------------------------
+.data
+	BUFFER_SIZE = 5000
+	numFormat db "%d",0
+
+.code
+	mov newLineChar, 0ah						; Initialize newLineChar
+
+	mov edx, OFFSET databaseFile				; Prepare to read the database file
+	call OpenInputFile
+	mov fileHandle, eax 
+
+	cmp eax, INVALID_HANDLE_VALUE				; File handling
+	jne read_success
+
+	mov edx, OFFSET errorMessage				; Print out error
+	call WriteString
+	jmp quit
+
+read_success:
+	mov ecx, BUFFER_SIZE
+	lea edx, buffer	
+
+	call ReadFromFile							; Read the file
+	jc show_read_error
+
+	mov bytesRead, eax
+
+	mov eax, fileHandle
+	call CloseFile
+
+	mov ecx, bytesRead							; Prepare the loop for parsing lines
+	lea edi, buffer
+	lea ebx, [edi + ecx]
+
+	mov edx, OFFSET databaseFile				; Begin to override the file
+	call CreateOutputFile
+	mov fileHandle, eax
+
+parse_line:
+	mov esi, edi								; Calculate the current byte 
+
+	mov currentByte, ebx 
+	sub currentByte, esi
+
+	mov eax, bytesRead
+	sub eax, currentByte
+
+	mov currentByte, eax 						; Store the current byte
+
+	mov ecx, ebx								; Calculate remaining bytes in the file
+	sub ecx, edi
+
+	jna quit									; Quit if eof
+
+	mov al, 0ah									; Set accumulator to 0x0A (end line)
+	repne scasb									; Scan string for accumulator
+
+	mov ecx, edi								; Set ecx to length of the split
+	sub ecx, esi
+	mov lineSize, ecx
+
+	pushad
+
+	mov eax, currentByte						; Check if the current byte is the same as the
+	cmp currentUser.bytePosition, eax			; current user's byte position
+	je print_new								; If it is, write the new line to file
+
+	lea edi, fileLine							; If it's not, write the original data to the file
+	rep movsb
+
+	mov eax, fileHandle
+	mov ecx, lineSize
+	lea edx, fileLine
+	call WriteToFile
+	
+	mov ecx, SIZEOF lineSize					; Reset the lineSize array
+	lea edi, fileLine
+	call ResetArray
+
+	popad
+	jmp parse_line
+
+print_new:
+	pushad
+
+	mov eax, fileHandle							; Write the username
+	mov ecx, nameByteCount
+	lea edx, currentUser.userUsername
+	call WriteToFile
+
+	mov eax, fileHandle							; Write a comma
+	mov ecx, 1
+	lea edx, commaSeparator
+	call WriteToFile
+
+	mov eax, fileHandle							; Write the password
+	mov ecx, passByteCount
+	lea edx, currentUser.userPassword
+	call WriteToFile
+	
+	mov eax, fileHandle							; Write a comma
+	mov ecx, 1
+	lea edx, commaSeparator
+	call WriteToFile
+
+	INVOKE wsprintf,							; Parse integer to string using wsprintf		
+		ADDR moneyToken,
+		ADDR numFormat,
+		[currentUser.userBalance]
+
+	mov ecx, eax								; Write the balance
+	mov eax, fileHandle
+	lea edx, moneyToken
+	call WriteToFile
+
+	mov eax, fileHandle							; Write newline 
+	mov ecx, 1
+	lea edx, newLineChar
+	call WriteToFile
+
+	popad
+	jmp parse_line
+
+show_read_error:
+	jmp quit
+
+quit:
+	mov eax, fileHandle							; Close the file
+	call CloseFile	
+	ret
+UpdateDatabase ENDP
 
 ;----------------------------------------------------
 VerifyLogin PROC USES ebx ecx edx edi esi
@@ -243,12 +398,13 @@ read_success:
 parse_line:
 	mov esi, edi								; Get position of the first byte
 
-	mov bytePosition, ebx 						; Calculate the byte position of the line being parsed
-	sub bytePosition, esi 						; End of file - current byte position
+	mov currentUser.bytePosition, ebx 			; Calculate the byte position of the line being parsed
+	sub currentUser.bytePosition, esi 			; End of file - current byte position
 
 	push eax
 	mov eax, bytesRead 
-	sub eax, bytePosition						; Total bytes read - bytePosition
+	sub eax, currentUser.bytePosition			; Total bytes read - bytePosition
+	mov currentUser.bytePosition, eax
 
 	pop eax
 
@@ -261,7 +417,6 @@ parse_line:
 	repne scasb 								; Scan string for accumulator while zero flag is clear and ecx > 0
 
 	mov ecx, edi 								; Set ecx to the length of the split
-	dec ecx 
 	sub ecx, esi
 	mov lineSize, ecx							; Save the size of the line 
 
@@ -299,7 +454,8 @@ L1:
 	mov eax, tokenOffset 						; Set the tokenOffset in eax
 
 	mov edi, eax 								; Move the token into a variable (can be nameToken, passToken, or moneyToken)
-	rep movsb 					
+	rep movsb 
+	mov BYTE PTR[edi], 0						; Null terminate the token			
 
 	sub eax, 32d 								; Move tokenOffset to point to the next token
 	mov tokenOffset, eax 
@@ -313,15 +469,13 @@ verify_login:
 		ADDR userName,
 		ADDR nameToken
 
-	ja restart_search							; If it doesn't match, search again
-	jb restart_search
+	jne restart_search							; If it doesn't match, search again
 	
 	INVOKE Str_compare,							; Compare userPass with pass in file
 		ADDR userPass,
 		ADDR passToken
 
-	ja invalid_password							; If it doesn't match, return 1
-	jb invalid_password
+	jne invalid_password						; If it doesn't match, return 1
 
 	lea edx, moneyToken							; Convert moneyToken to an integer
 	mov ecx, SIZEOF moneyToken

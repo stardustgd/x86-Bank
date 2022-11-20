@@ -14,20 +14,16 @@ INCLUDE BankApp.inc
 	welcomeText db "Welcome to the x86 Bank!", endl
 	goodbyeText db "Thank you for banking with us.", endl
 
-	fileHandle HANDLE ?
-	bytesWritten dd ?
-	bytePosition dd ?
-
 	currentUser User <>
 
 .code
 main PROC
-	call initializeDatabase
+	call InitializeDatabase
 
 login_loop:										; Repeat login prompt if login fails
 	call Clrscr
-	call loginMenu
-	call verifyLogin
+	call LoginMenu
+	call VerifyLogin
 
 	cmp eax, 0
 	je exit_loop 
@@ -41,17 +37,15 @@ exit_loop:
 	call WriteString
 
 L1:												; Main program loop
-	call printMenu
+	call PrintMenu
 
 	cmp eax, -1
 	je exit_program
 
-	call DumpRegs
-
 	call Clrscr
 	jmp L1
 
-exit_program::
+exit_program:
 	call Clrscr
 	mov edx, OFFSET goodbyeText
 	call WriteString
