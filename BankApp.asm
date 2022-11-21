@@ -13,7 +13,7 @@ INCLUDE BankApp.inc
 .data
 	welcomeText db "Welcome to the x86 Bank!", endl
 	goodbyeText db "Thank you for banking with us.", endl
-
+  
 	currentUser User <>
 
 .code
