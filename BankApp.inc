@@ -36,5 +36,5 @@ InitializeStruct PROTO, username:PTR DWORD,
 	bytePosition:PTR DWORD
 LoginMenu PROTO 
 RegisterUser PROTO
-UpdateDatabase PROTO
+UpdateDatabase PROTO, balance:PTR DWORD
 VerifyLogin PROTO

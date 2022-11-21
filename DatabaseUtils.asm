@@ -229,7 +229,8 @@ L1:
 ResetArray ENDP
 
 ;----------------------------------------------------
-UpdateDatabase PROC USES eax ebx ecx edx edi esi
+UpdateDatabase PROC USES eax ebx ecx edx edi esi,
+	balance:PTR DWORD
 	LOCAL buffer[5000]:BYTE, fileLine[96]:BYTE,
 		  moneyToken[32]:BYTE, currentByte:DWORD, 
 		  lineSize:DWORD, bytesRead:DWORD,
@@ -345,10 +346,11 @@ print_new:
 	lea edx, commaSeparator
 	call WriteToFile
 
+	mov eax, balance
+
 	INVOKE wsprintf,							; Parse integer to string using wsprintf		
-		ADDR moneyToken,
-		ADDR numFormat,
-		[tempUser.userBalance]
+		ADDR moneyToken, 
+		ADDR numFormat, [eax]
 
 	mov ecx, eax								; Write the balance
 	mov eax, fileHandle

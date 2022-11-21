@@ -59,6 +59,8 @@ exit_program:
 	mov edx, OFFSET goodbyeText
 	call WriteString
 
+	INVOKE Sleep, 1000							; Wait 2s before terminating
+
 	exit
 main ENDP
 END main

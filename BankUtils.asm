@@ -35,13 +35,15 @@ L1:
 
 	add [ebx].userBalance, eax					; Add to the user's balance
 
-	assume ebx:nothing
 
 	mov edx, OFFSET depositSuccess				; Print out success
 	call WriteString
 	call WriteDec
 	call Crlf
-	; call UpdateDatabase						; Update database
+
+	INVOKE UpdateDatabase,						; Update database
+		ADDR [ebx].userBalance
+	assume ebx:nothing
 
 	call WaitMsg
 
@@ -217,13 +219,15 @@ Withdraw PROC USES edx ebx eax
 
 L1:
 	sub [ebx].userBalance, eax					; Withdraw the money from the user's account 
-	assume ebx:nothing
 
 	mov edx, OFFSET withdrawSuccess				; Print out the withdraw success
 	call WriteString
 	call WriteDec
 	call Crlf
-	; call UpdateDatabase
+
+	INVOKE UpdateDatabase,						; Update database
+		ADDR [ebx].userBalance
+	assume ebx:nothing
 
 	call WaitMsg								; Wait for user to press any key to continue
 	jmp quit
