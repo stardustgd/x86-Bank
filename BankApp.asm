@@ -25,19 +25,28 @@ login_loop:										; Repeat login prompt if login fails
 	call LoginMenu
 	call VerifyLogin
 
-	cmp eax, 0
-	je exit_loop 
+	cmp eax, 0									; Leave loop if a valid login is entered
+	je exit_loop
+
+	cmp eax, -1									; Exit program if user doesn't want to register
+	je exit_program 
 
 	call WaitMsg
 	jmp login_loop
 	
 exit_loop:
+	INVOKE InitializeStruct, 
+		ADDR currentUser.userUsername,
+		ADDR currentUser.userPassword, 
+		ADDR currentUser.userBalance,
+		ADDR currentUser.bytePosition
+
 	call Clrscr
 	mov edx, OFFSET welcomeText
 	call WriteString
 
 L1:												; Main program loop
-	call PrintMenu
+	INVOKE PrintMenu, ADDR currentUser
 
 	cmp eax, -1
 	je exit_program

@@ -2,8 +2,7 @@ INCLUDE BankApp.inc
 
 .code
 ;----------------------------------------------------
-Deposit PROC USES eax ebx edx,
-	balance:PTR DWORD
+Deposit PROC USES eax ebx edx
 ;
 ; Allows the user to specify an amount of money
 ; that is added to their account balance.
@@ -15,6 +14,9 @@ Deposit PROC USES eax ebx edx,
 	depositError db "The deposit has not been completed. (Invalid Amount)", endl
 
 .code
+	push ebp
+	mov ebp, esp
+
 	mov edx, OFFSET depositPrompt				; Print out prompt and read user int
 	call WriteString
 	call ReadDec
@@ -28,24 +30,28 @@ Deposit PROC USES eax ebx edx,
 	jmp quit
 
 L1:
-	mov ebx, balance							; ebx = address of userBalance
-	add [ebx], eax								; Add to the user's balance
+	mov ebx, [ebp + 20]							; ebx = address of currentUser
+	assume ebx:ptr User							; Assume ebx is a pointer to user
+
+	add [ebx].userBalance, eax					; Add to the user's balance
+
+	assume ebx:nothing
 
 	mov edx, OFFSET depositSuccess				; Print out success
 	call WriteString
 	call WriteDec
 	call Crlf
-	call UpdateDatabase							; Update database
+	; call UpdateDatabase						; Update database
 
 	call WaitMsg
 
 quit:
+	pop ebp
 	ret
 Deposit ENDP
 
 ;----------------------------------------------------
-Interest PROC USES eax ecx edx,
-	balance:PTR DWORD
+Interest PROC USES eax ecx edx
 ;
 ; Calculates the user's accumulated interest
 ; using the formula: A = P(1 + rt)
@@ -57,6 +63,8 @@ Interest PROC USES eax ecx edx,
 	interestRate = 3
 
 .code
+	push ebp
+	mov ebp, esp
 	mov edx, OFFSET interestPrompt				; Print out prompt and get user input
 	call WriteString
 	call ReadDec
@@ -66,8 +74,11 @@ Interest PROC USES eax ecx edx,
 	imul eax, ecx
 
 	add eax, 1									; Add 1 to rt
-	mov ecx, balance
-	imul eax, [ecx]								; Multiply by P
+	mov ecx, [ebp + 20]							; ecx = address of currentUser
+	assume ecx:ptr User
+	imul eax, [ecx].userBalance					; Multiply by P
+
+	assume ecx:nothing
 
 	mov edx, OFFSET interestTotal				; Print out the total interest
 	call WriteString
@@ -76,6 +87,7 @@ Interest PROC USES eax ecx edx,
 
 	call WaitMsg
 
+	pop ebp
 	ret
 Interest ENDP
 
@@ -92,8 +104,7 @@ Logout PROC
 Logout ENDP
 
 ;----------------------------------------------------
-PrintBalance PROC USES eax edx,
-	balance:PTR DWORD
+PrintBalance PROC USES eax edx
 ;
 ; Prints the user's current balance.
 ; Recieves: nothing
@@ -103,20 +114,27 @@ PrintBalance PROC USES eax edx,
 	balanceString db "Your current balance is $",0
 
 .code
+	push ebp
+	mov ebp, esp
 	mov edx, OFFSET balanceString
 	call WriteString
 
-	mov eax, balance
-	mov eax, [eax]
+	mov ebx, [ebp + 16]							; ebx = pointer to currentUser
+	assume ebx:ptr User
+
+	mov eax, [ebx].userBalance					; eax = currentUser.userBalance
 	call WriteDec
 	call Crlf
 
+	assume ebx:nothing
 	call WaitMsg
+	pop ebp
 	ret
 PrintBalance ENDP
 
 ;----------------------------------------------------
-PrintMenu PROC USES ebx ecx edx
+PrintMenu PROC USES ebx ecx edx,
+	currentUser:PTR DWORD
 ;
 ; Print out a menu for the user to select options.
 ; Recieves: nothing
@@ -155,7 +173,9 @@ PrintMenu PROC USES ebx ecx edx
 L1:	
 	cmp al, [ebx]								; Match found?
 	jne L2										; No, continue
+	push currentUser
 	call NEAR PTR [ebx + 1]						; Yes, call procedure
+	pop ebx
 	jmp L3										; Exit loop
 L2:	
 	add ebx, EntrySize							; Point to next entry, repeat until ecx = 0
@@ -165,8 +185,7 @@ L3:
 PrintMenu ENDP
 
 ;----------------------------------------------------
-Withdraw PROC USES edx ebx eax,
-	balance:PTR DWORD
+Withdraw PROC USES edx ebx eax
 ;
 ; Allows the user to specify an amount of money
 ; that is subtracted from their account balance.
@@ -180,6 +199,9 @@ Withdraw PROC USES edx ebx eax,
 	withdrawInvalid db "The withdraw has not been completed. (Invalid amount)", endl
 
 .code 
+	push ebp
+	mov ebp, esp
+
 	mov edx, OFFSET withdrawPrompt				; Print out prompt and read user int
 	call WriteString 
 	call ReadDec
@@ -187,19 +209,21 @@ Withdraw PROC USES edx ebx eax,
 	cmp eax, 0
 	jle show_invalid_error
 
-	mov ebx, balance
-	cmp eax, [ebx]								; Compare the input with the account balance
+	mov ebx, [ebp + 20]
+	assume ebx:ptr User
+	cmp eax, [ebx].userBalance					; Compare the input with the account balance
 	jl L1										; Complete withdraw if input is less than balance
 	jmp show_withdraw_error						; Print out error if input is greater than balance
 
 L1:
-	sub [ebx], eax			; Withdraw the money from the user's account 
+	sub [ebx].userBalance, eax					; Withdraw the money from the user's account 
+	assume ebx:nothing
 
 	mov edx, OFFSET withdrawSuccess				; Print out the withdraw success
 	call WriteString
 	call WriteDec
 	call Crlf
-	call UpdateDatabase
+	; call UpdateDatabase
 
 	call WaitMsg								; Wait for user to press any key to continue
 	jmp quit
@@ -216,6 +240,7 @@ show_withdraw_error:
 	call WaitMsg								; Wait for user to press any key to continue
 
 quit:
+	pop ebp
 	ret
 Withdraw ENDP
 END
