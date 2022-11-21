@@ -5,6 +5,8 @@ INCLUDE BankApp.inc
 	fileHandle HANDLE ?
 	bytesWritten dd 0
 
+	tempUser User <>
+
 .code
 ;----------------------------------------------------
 EncryptPassword PROC PRIVATE USES esi
@@ -14,11 +16,10 @@ EncryptPassword PROC PRIVATE USES esi
 ; Recieves: ecx = size of buffer
 ; Returns: nothing
 ;----------------------------------------------------
-.code
 	mov esi, 0
 	
 L1:
-	xor userPass[esi], key
+	xor userPass[esi], KEY
 	inc esi
 	loop L1
 
@@ -55,6 +56,29 @@ quit:
 	call CloseFile								; Close the file
 	ret
 InitializeDatabase ENDP
+
+;----------------------------------------------------
+InitializeStruct PROC USES eax ebx,
+	username:PTR DWORD, password:PTR DWORD,
+	balance:PTR DWORD, bytePosition:PTR DWORD
+;
+; Transfers the values of tempUser to the
+; current user.
+; Returns: nothing
+;----------------------------------------------------
+	INVOKE Str_copy, ADDR tempUser.userUsername, username
+	INVOKE Str_copy, ADDR tempUser.userPassword, password
+	
+	mov eax, balance
+	mov ebx, tempUser.userBalance
+	mov [eax], ebx
+
+	mov eax, bytePosition
+	mov ebx, tempUser.bytePosition
+	mov [eax], ebx
+
+	ret
+InitializeStruct ENDP
 
 ;----------------------------------------------------
 LoginMenu PROC USES ecx edx
@@ -103,7 +127,7 @@ LoginMenu PROC USES ecx edx
 LoginMenu ENDP
 
 ;----------------------------------------------------
-RegisterUser PROC USES eax edx
+RegisterUser PROC USES edx
 ;
 ; Registers a user to the database.
 ; Recieves: nothing
@@ -136,13 +160,13 @@ L1:
 	jmp L1										; Repeat until valid input
 
 register_user:
-	mov currentUser.userBalance, 500			; Store balance into struct
+	mov tempUser.userBalance, 500				; Store balance into struct
 
 	INVOKE Str_copy, ADDR userName, 			; Store username into struct
-		ADDR currentUser.userUsername
+		ADDR tempUser.userUsername
 
 	INVOKE Str_copy, ADDR userPass, 			; Store password into struct 
-		ADDR currentUser.userPassword
+		ADDR tempUser.userPassword
 
 	INVOKE CreateFile,							; Open a new file handle
 		ADDR databaseFile, GENERIC_WRITE,
@@ -175,7 +199,8 @@ register_user:
 	jmp quit
 
 terminate_program:
-	call Logout
+	mov eax, -1
+	ret
 
 quit:
 	mov eax, fileHandle
@@ -279,7 +304,7 @@ parse_line:
 	pushad
 
 	mov eax, currentByte						; Check if the current byte is the same as the
-	cmp currentUser.bytePosition, eax			; current user's byte position
+	cmp tempUser.bytePosition, eax				; current user's byte position
 	je print_new								; If it is, write the new line to file
 
 	lea edi, fileLine							; If it's not, write the original data to the file
@@ -302,7 +327,7 @@ print_new:
 
 	mov eax, fileHandle							; Write the username
 	mov ecx, nameByteCount
-	lea edx, currentUser.userUsername
+	lea edx, tempUser.userUsername
 	call WriteToFile
 
 	mov eax, fileHandle							; Write a comma
@@ -312,7 +337,7 @@ print_new:
 
 	mov eax, fileHandle							; Write the password
 	mov ecx, passByteCount
-	lea edx, currentUser.userPassword
+	lea edx, tempUser.userPassword
 	call WriteToFile
 	
 	mov eax, fileHandle							; Write a comma
@@ -323,7 +348,7 @@ print_new:
 	INVOKE wsprintf,							; Parse integer to string using wsprintf		
 		ADDR moneyToken,
 		ADDR numFormat,
-		[currentUser.userBalance]
+		[tempUser.userBalance]
 
 	mov ecx, eax								; Write the balance
 	mov eax, fileHandle
@@ -360,6 +385,7 @@ VerifyLogin PROC USES ebx ecx edx edi esi
 ; Recieves: nothing
 ; Returns: eax = 0 if success
 ;		   eax = 1 if fail
+;		   eax = -1 if user doesn't want to register
 ;----------------------------------------------------
 .data 
 	errorMessage db "Couldn't open the file.", endl
@@ -398,13 +424,13 @@ read_success:
 parse_line:
 	mov esi, edi								; Get position of the first byte
 
-	mov currentUser.bytePosition, ebx 			; Calculate the byte position of the line being parsed
-	sub currentUser.bytePosition, esi 			; End of file - current byte position
+	mov tempUser.bytePosition, ebx 				; Calculate the byte position of the line being parsed
+	sub tempUser.bytePosition, esi 				; End of file - current byte position
 
 	push eax
 	mov eax, bytesRead 
-	sub eax, currentUser.bytePosition			; Total bytes read - bytePosition
-	mov currentUser.bytePosition, eax
+	sub eax, tempUser.bytePosition				; Total bytes read - bytePosition
+	mov tempUser.bytePosition, eax
 
 	pop eax
 
@@ -481,13 +507,16 @@ verify_login:
 	mov ecx, SIZEOF moneyToken
 	call ParseInteger32
 
-	mov currentUser.userBalance, eax			; Store balance into struct
+	mov tempUser.userBalance, eax				; Store balance into struct
 
 	INVOKE Str_copy, ADDR nameToken, 			; Store username into struct
-		ADDR currentUser.userUsername
+		ADDR tempUser.userUsername
 
 	INVOKE Str_copy, ADDR passToken, 			; Store password into struct 
-		ADDR currentUser.userPassword
+		ADDR tempUser.userPassword
+
+	; lea edx, userPass
+	; call WriteString
 
 	mov eax, 0									; Return eax = 0 (success)
 	jmp restore_registers
@@ -516,8 +545,8 @@ restart_search:
 
 eof:
 	call RegisterUser							; If the end of the file has been reached,
-	mov eax, 0									; and no match has been found, then register
-	jmp restore_registers						; the user to the database.
+	jmp restore_registers						; and no match has been found, then register
+												; the user to the database.
 
 invalid_password:
 	mov edx, OFFSET invalidPassword				; Print out error
@@ -534,7 +563,6 @@ show_read_error:
 restore_registers:
 	pop ebx
 	pop edi
-	jmp quit
 
 quit:
 	ret

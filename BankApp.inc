@@ -20,17 +20,20 @@ User ENDS
 ;----------------------------------------
 ;              Bank Utilities
 ;----------------------------------------
-Deposit PROTO, balance:PTR DWORD
-Interest PROTO, balance:PTR DWORD
+Deposit PROTO
+Interest PROTO
 Logout PROTO
-PrintBalance PROTO, balance:PTR DWORD
-PrintMenu PROTO
-Withdraw PROTO, balance:PTR DWORD
+PrintBalance PROTO
+PrintMenu PROTO, currentUser:PTR DWORD
+Withdraw PROTO
 
 ;----------------------------------------
 ;             Database Utilities
 ;----------------------------------------
 InitializeDatabase PROTO
+InitializeStruct PROTO, username:PTR DWORD,
+	password:PTR DWORD, balance:PTR DWORD,
+	bytePosition:PTR DWORD
 LoginMenu PROTO 
 RegisterUser PROTO
 UpdateDatabase PROTO
