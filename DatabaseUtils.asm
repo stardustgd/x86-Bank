@@ -220,8 +220,11 @@ register_user:
 	INVOKE Str_copy, ADDR userPass, 			; Store password into struct 
 		ADDR tempUser.userPassword
 
-	lea edx, databaseFile						; Open file 
-	call OpenInputFile
+	INVOKE CreateFile,							; Open a new file handle
+		ADDR databaseFile, GENERIC_WRITE,
+		DO_NOT_SHARE, NULL, OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL, 0
+		
 	mov fileHandle, eax					
 
 	INVOKE SetFilePointer,						; Move the fileHandle to the end of the file
