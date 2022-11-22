@@ -3,9 +3,10 @@ INCLUDE Irvine32.inc
 ;----------------------------------------
 ;                Constants
 ;----------------------------------------
+BUFFER_SIZE = 5000
 endl EQU <0dh, 0ah, 0>
-newLine EQU <0dh, 0ah>
 KEY = 239
+newLine EQU <0dh, 0ah>
 
 ;----------------------------------------
 ;                 Structs
