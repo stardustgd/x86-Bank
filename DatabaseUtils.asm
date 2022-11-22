@@ -268,7 +268,6 @@ ResetArray PROC PRIVATE USES eax
 ;			edi = offset of array
 ; Returns: nothing
 ;----------------------------------------------------
-.code
 	mov al, 0
 
 L1:
