@@ -4,10 +4,61 @@ INCLUDE BankApp.inc
 	databaseFile db "database.txt",0
 	fileHandle HANDLE ?
 	bytesWritten dd 0
+	nStdHandle dd ?
 
 	tempUser User <>
 
 .code
+;----------------------------------------------------
+DisableEcho PROC PRIVATE USES eax edx 
+;
+; Clears the ENABLE_ECHO_INPUT to turn off console
+; echo.
+; Recieves: nothing
+; Returns: nothing
+;----------------------------------------------------
+	push STD_INPUT_HANDLE
+	call GetStdHandle
+	mov nStdHandle, eax
+
+	push eax
+	push edx									; Create a slot
+
+	INVOKE GetConsoleMode, eax, esp
+	pop eax 									; Get current mode 
+
+	and eax, NOT ENABLE_ECHO_INPUT				; Clear echo bit
+	pop edx
+	INVOKE SetConsoleMode, edx, eax
+
+	ret
+DisableEcho ENDP
+
+;----------------------------------------------------
+EnableEcho PROC PRIVATE USES eax edx
+;
+; Enables the ENABLE_ECHO_INPUT to turn on console
+; echo.
+; Recieves: nothing
+; Returns: nothing
+;----------------------------------------------------
+	push STD_INPUT_HANDLE
+	call GetStdHandle
+	mov nStdHandle, eax
+
+	push eax
+	push edx									; Create a slot
+
+	INVOKE GetConsoleMode, eax, esp
+	pop eax										; Get current mode
+
+	or eax, ENABLE_ECHO_INPUT					; Set echo bit
+	pop edx
+	INVOKE SetConsoleMode, edx, eax
+
+	ret
+EnableEcho ENDP 
+
 ;----------------------------------------------------
 EncryptPassword PROC PRIVATE USES esi
 ;
@@ -39,20 +90,16 @@ InitializeDatabase PROC USES eax edx
 .code
 	INVOKE SetConsoleTitle, ADDR programTitle	; Set the console title
 
-	INVOKE CreateFile, 							; Try to open database file
-		ADDR databaseFile, GENERIC_WRITE, 
-		DO_NOT_SHARE, NULL, OPEN_EXISTING, 
-		FILE_ATTRIBUTE_NORMAL, 0
+	lea edx, databaseFile				; Try to open database file
+	call OpenInputFile
 
 	cmp eax, INVALID_HANDLE_VALUE				; Check if the file exists
 	jne quit									; If it does, do nothing
 
-	mov edx, OFFSET databaseFile				; If it doesn't, create one
-	call CreateOutputFile
+	call CreateOutputFile						; If it doesn't, create one
 
 quit:
 	mov fileHandle, eax							; Save the file handle
-	
 	call CloseFile								; Close the file
 	ret
 InitializeDatabase ENDP
@@ -100,6 +147,7 @@ LoginMenu PROC USES ecx edx
 	passByteCount DWORD ?
 
 .code
+	call EnableEcho								; Make sure echo is turned on
 	mov edx, OFFSET usernamePrompt				; Print username prompt
 	call WriteString
 
@@ -112,9 +160,13 @@ LoginMenu PROC USES ecx edx
 	mov edx, OFFSET passwordPrompt				; Print passowrd prompt
 	call WriteString
 
+	call DisableEcho							; Turn off console echo
+
 	mov edx, OFFSET userPass					; Prompt for password
 	mov ecx, SIZEOF userPass
 	call ReadString
+
+	call EnableEcho								; Turn on console echo
 
 	mov passByteCount, eax
 
@@ -134,9 +186,9 @@ RegisterUser PROC USES edx
 ; Returns: nothing
 ;----------------------------------------------------
 .data
-	registerPrompt db "You are not registered with x86 Bank. Would you like to register? (Y/N)", endl
 	commaSeparator db ","
 	initializeMoney db ",500", 0ah				; Initilaize account with $500
+	registerPrompt db "You are not registered with x86 Bank. Would you like to register? (Y/N)", endl
 
 .code
 L1:
@@ -152,10 +204,10 @@ L1:
 	je register_user
 
 	cmp al, 6eh									; Check if char n
-	je terminate_program
+	je terminate_register
 
 	cmp al, 4eh									; Check if char N
-	je terminate_program
+	je terminate_register
 
 	jmp L1										; Repeat until valid input
 
@@ -168,11 +220,8 @@ register_user:
 	INVOKE Str_copy, ADDR userPass, 			; Store password into struct 
 		ADDR tempUser.userPassword
 
-	INVOKE CreateFile,							; Open a new file handle
-		ADDR databaseFile, GENERIC_WRITE,
-		DO_NOT_SHARE, NULL, OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL, 0
-
+	lea edx, databaseFile						; Open file 
+	call OpenInputFile
 	mov fileHandle, eax					
 
 	INVOKE SetFilePointer,						; Move the fileHandle to the end of the file
@@ -198,13 +247,15 @@ register_user:
 
 	jmp quit
 
-terminate_program:
+terminate_register:
 	mov eax, -1
 	ret
 
 quit:
 	mov eax, fileHandle
 	call CloseFile
+
+	mov eax, 0
 	ret
 RegisterUser ENDP
 
@@ -238,11 +289,9 @@ UpdateDatabase PROC USES eax ebx ecx edx edi esi,
 ;
 ; Updates the current user's balance in the database
 ; whenever a deposit/withdraw is done. 
-; Recieves: nothing
 ; Returns: nothing
 ;----------------------------------------------------
 .data
-	BUFFER_SIZE = 5000
 	numFormat db "%d",0
 
 .code
@@ -391,9 +440,8 @@ VerifyLogin PROC USES ebx ecx edx edi esi
 ;----------------------------------------------------
 .data 
 	errorMessage db "Couldn't open the file.", endl
-	readError db "Couldn't read file.", endl
 	invalidPassword db "Incorrect password.", endl
-	BUFFER_SIZE = 5000
+	readError db "Couldn't read file.", endl
 
 .code
 	mov edx, OFFSET databaseFile				; Try to open the database file
@@ -546,11 +594,13 @@ restart_search:
 	jmp parse_line
 
 eof:
+	call Clrscr
 	call RegisterUser							; If the end of the file has been reached,
 	jmp restore_registers						; and no match has been found, then register
 												; the user to the database.
 
 invalid_password:
+	call Clrscr
 	mov edx, OFFSET invalidPassword				; Print out error
 	call WriteString 
 
