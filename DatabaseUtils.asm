@@ -205,6 +205,7 @@ terminate_program:
 quit:
 	mov eax, fileHandle
 	call CloseFile
+	mov eax, 0
 	ret
 RegisterUser ENDP
 
@@ -217,7 +218,6 @@ ResetArray PROC PRIVATE USES eax
 ;			edi = offset of array
 ; Returns: nothing
 ;----------------------------------------------------
-.code
 	mov al, 0
 
 L1:
