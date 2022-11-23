@@ -6,7 +6,12 @@
 ; Class: CIS123 Assembly Language
 ; File Name: BankApp.asm
 ; Creation Date: 10/16/22
-; Program Description: TODO
+; Program Description: The x86 Bank is a console based banking application that
+;					   allows the user to deposit, withdraw, calculate interest,
+;					   and show their current balance. This program utilizes a database
+;					   in the form of a text file in order to store user credentials.
+;					   User's credentials are verified and updated when the user signs
+;					   in and when the user performs a withdraw/deposit.
 
 INCLUDE BankApp.inc
 

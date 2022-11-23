@@ -1,3 +1,14 @@
+; Authors: Sebastian Ala Torre,
+;		   Conan Nguyen,
+;		   Samuel Segovia,
+;		   Austen Bernal,
+;		   Bernardo Flores
+; Class: CIS123 Assembly Language
+; File Name: BankApp.inc
+; Creation Date: 10/16/22
+; Program Description: This file contains prototypes, structures, and
+;					   constants used in the BankApp program.
+
 INCLUDE Irvine32.inc
 
 ;----------------------------------------
@@ -5,6 +16,7 @@ INCLUDE Irvine32.inc
 ;----------------------------------------
 BUFFER_SIZE = 5000
 endl EQU <0dh, 0ah, 0>
+interestRate = 3
 KEY = 239
 newLine EQU <0dh, 0ah>
 

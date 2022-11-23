@@ -1,10 +1,20 @@
+; Authors: Sebastian Ala Torre,
+;		   Conan Nguyen,
+;		   Samuel Segovia,
+;		   Austen Bernal,
+;		   Bernardo Flores
+; Class: CIS123 Assembly Language
+; File Name: DatabaseUtils.asm
+; Creation Date: 10/16/22
+; Program Description: This file contains the implementations for all
+;					   procedures related to Database Utilities.
+
 INCLUDE BankApp.inc 
 
 .data
 	databaseFile db "database.txt",0
 	fileHandle HANDLE ?
 	bytesWritten dd 0
-	nStdHandle dd ?
 
 	tempUser User <>
 
@@ -12,14 +22,13 @@ INCLUDE BankApp.inc
 ;----------------------------------------------------
 DisableEcho PROC PRIVATE USES eax edx 
 ;
-; Clears the ENABLE_ECHO_INPUT to turn off console
+; Clears the ENABLE_ECHO_INPUT bit to turn off console
 ; echo.
 ; Recieves: nothing
 ; Returns: nothing
 ;----------------------------------------------------
 	push STD_INPUT_HANDLE
 	call GetStdHandle
-	mov nStdHandle, eax
 
 	push eax
 	push edx									; Create a slot
@@ -37,14 +46,13 @@ DisableEcho ENDP
 ;----------------------------------------------------
 EnableEcho PROC PRIVATE USES eax edx
 ;
-; Enables the ENABLE_ECHO_INPUT to turn on console
+; Enables the ENABLE_ECHO_INPUT bit to turn on console
 ; echo.
 ; Recieves: nothing
 ; Returns: nothing
 ;----------------------------------------------------
 	push STD_INPUT_HANDLE
 	call GetStdHandle
-	mov nStdHandle, eax
 
 	push eax
 	push edx									; Create a slot
@@ -90,7 +98,7 @@ InitializeDatabase PROC USES eax edx
 .code
 	INVOKE SetConsoleTitle, ADDR programTitle	; Set the console title
 
-	lea edx, databaseFile				; Try to open database file
+	lea edx, databaseFile						; Try to open database file
 	call OpenInputFile
 
 	cmp eax, INVALID_HANDLE_VALUE				; Check if the file exists
@@ -566,9 +574,6 @@ verify_login:
 
 	INVOKE Str_copy, ADDR passToken, 			; Store password into struct 
 		ADDR tempUser.userPassword
-
-	; lea edx, userPass
-	; call WriteString
 
 	mov eax, 0									; Return eax = 0 (success)
 	jmp restore_registers

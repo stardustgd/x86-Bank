@@ -1,3 +1,14 @@
+; Authors: Sebastian Ala Torre,
+;		   Conan Nguyen,
+;		   Samuel Segovia,
+;		   Austen Bernal,
+;		   Bernardo Flores
+; Class: CIS123 Assembly Language
+; File Name: BankUtils.asm
+; Creation Date: 10/16/22
+; Program Description: This file contains the implementations for all
+;					   procedures related to Bank Utilities. 
+
 INCLUDE BankApp.inc 
 
 .code
@@ -62,7 +73,6 @@ Interest PROC USES eax ecx edx
 .data
 	interestPrompt db "Enter amount of years to calculate interest for: ", 0
 	interestTotal db "Total interest at a rate of 3% is: $", 0
-	interestRate = 3
 
 .code
 	push ebp
@@ -125,7 +135,7 @@ PrintBalance PROC USES eax edx
 	assume ebx:ptr User
 
 	mov eax, [ebx].userBalance					; eax = currentUser.userBalance
-	call WriteDec
+	call WriteDec								; Print out balance
 	call Crlf
 
 	assume ebx:nothing
@@ -175,7 +185,7 @@ PrintMenu PROC USES ebx ecx edx,
 L1:	
 	cmp al, [ebx]								; Match found?
 	jne L2										; No, continue
-	push currentUser
+	push currentUser							; Push pointer to currentUser
 	call NEAR PTR [ebx + 1]						; Yes, call procedure
 	pop ebx
 	jmp L3										; Exit loop
@@ -211,8 +221,9 @@ Withdraw PROC USES edx ebx eax
 	cmp eax, 0
 	jle show_invalid_error
 
-	mov ebx, [ebp + 20]
+	mov ebx, [ebp + 20]							; ebx = pointer to currentUser
 	assume ebx:ptr User
+
 	cmp eax, [ebx].userBalance					; Compare the input with the account balance
 	jl L1										; Complete withdraw if input is less than balance
 	jmp show_withdraw_error						; Print out error if input is greater than balance
