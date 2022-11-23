@@ -48,6 +48,12 @@
 - 11/13/2022
   - Finish a prototype version of a multimodule program and discuss future plans
 
+- 11/17/2022
+  - Complete implementation of Interest and PrintBalance, multimodule program semi-functional
+
+- 11/20/2022
+  - Multimodule program functional, begin cleaning up code/comments
+
 ## Resources Needed
 
 - Visual Studio
