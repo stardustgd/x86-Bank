@@ -1,6 +1,5 @@
 *.temp.*
 *.obj*
-*.exe*
 *.err*
 database.txt
 /bin/

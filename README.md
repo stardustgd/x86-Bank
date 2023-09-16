@@ -20,17 +20,7 @@ in and when the user performs a withdraw/deposit.
 > [!NOTE]
 > This method of building only works on Windows. If you are using a different operating system, it is recommended to use [vscode-masm-runner](https://github.com/istareatscreens/vscode-masm-runner)
 
-Install dependencies:
-
-- vscode
-- vscode-masm-runner
-
- To avoid using masm-runner:
-- jwasm (optional, for compiling and assembling)
-- jwlink (optional, for linking)
-
-Then run:
-
 ```shell
 .\build.ps1
+.\bin\x86Bank
 ```
