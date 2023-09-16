@@ -1,0 +1,4 @@
+{
+    "masmRunner.addCustomLinkArgumentsAtEnd": "file \"BankUtils.obj\" file \"DatabaseUtils.obj\"",
+    "masmRunner.addCustomCompilerArgumentsAtEnd": "\"BankUtils.asm\" \"DatabaseUtils.asm\""
+}
