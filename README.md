@@ -18,7 +18,7 @@ in and when the user performs a withdraw/deposit.
 ## Building
 
 > [!NOTE]
-> This method of building only works on Windows, if you are using a different operating system, it is recommended to use [vscode-masm-runner](https://github.com/istareatscreens/vscode-masm-runner)
+> This method of building only works on Windows. If you are using a different operating system, it is recommended to use [vscode-masm-runner](https://github.com/istareatscreens/vscode-masm-runner)
 
 Install dependencies:
 
