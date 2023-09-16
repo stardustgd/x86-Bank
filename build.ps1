@@ -1,6 +1,6 @@
 # (Windows Only)
-# This script also assumes that you have the MASM Runner extension
-# installed in VSCode as it uses its JWASM and JWlink executables.
+# This script uses the JWasm and JWlink binaries in native/
+
 param (
     [string]$param1
 )
