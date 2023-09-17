@@ -7,6 +7,8 @@ in the form of a text file in order to store user credentials.
 User's credentials are verified and updated when the user signs
 in and when the user performs a withdraw/deposit.
 
+![menu](docs/menu.png)
+
 ## Contributors
 
 - Sebastian Ala Torre
