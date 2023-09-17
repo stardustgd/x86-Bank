@@ -7,6 +7,8 @@ in the form of a text file in order to store user credentials.
 User's credentials are verified and updated when the user signs
 in and when the user performs a withdraw/deposit.
 
+![menu](docs/menu.png)
+
 ## Contributors
 
 - Sebastian Ala Torre
@@ -17,10 +19,20 @@ in and when the user performs a withdraw/deposit.
 
 ## Building
 
-> [!NOTE]
-> This method of building only works on Windows. If you are using a different operating system, it is recommended to use [vscode-masm-runner](https://github.com/istareatscreens/vscode-masm-runner)
+### Windows
 
 ```shell
 .\build.ps1
 .\bin\x86Bank
+```
+
+### Linux
+
+Dependencies:
+
+- [wine](https://www.winehq.org/)
+
+```shell
+./build.sh
+wine bin/x86Bank.exe
 ```

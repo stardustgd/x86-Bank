@@ -9,7 +9,7 @@
 ; Program Description: This file contains prototypes, structures, and
 ;					   constants used in the BankApp program.
 
-INCLUDE include/Irvine/Irvine32.inc
+INCLUDE include/Irvine32/Irvine32.inc
 
 ;----------------------------------------
 ;                Constants
