@@ -14,7 +14,7 @@ case $1 in
 
     JWLINK=native/JWlink.exe
     JWLINKFLAGS="format windows pe"
-    LIBPATH="include/Irvine"
+    LIBPATH="include/Irvine32"
     LIBRARY="LIBRARY $LIBPATH/Irvine32.lib LIBRARY $LIBPATH/Kernel32.lib LIBRARY $LIBPATH/User32.lib"
 
     BIN=bin

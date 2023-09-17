@@ -19,7 +19,7 @@ $JWASMFLAGS = "/Zd /coff"
 
 $JWLINK = "native\JWlink"
 $JWLINKFLAGS = "format windows pe"
-$LIBPATH = "include\Irvine"
+$LIBPATH = "include\Irvine32"
 $LIBRARY = "$LIBPATH\Irvine32.lib",
            "$LIBPATH\Kernel32.lib",
            "$LIBPATH\User32.lib"

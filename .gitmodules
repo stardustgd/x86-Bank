@@ -1,0 +1,3 @@
+[submodule "include/Irvine32"]
+	path = include/Irvine32
+	url = https://github.com/Eazybright/Irvine32
