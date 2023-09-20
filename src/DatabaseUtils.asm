@@ -104,6 +104,7 @@ InitializeDatabase PROC USES eax edx
 	cmp eax, INVALID_HANDLE_VALUE				; Check if the file exists
 	jne quit									; If it does, do nothing
 
+	lea edx, databaseFile
 	call CreateOutputFile						; If it doesn't, create one
 
 quit:
